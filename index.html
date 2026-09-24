@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#dc5f35" />
+  <title>What's Cooking?</title>
+  <style>
+    :root { --ink:#24201d; --muted:#6f6862; --paper:#fffaf4; --card:#ffffff; --accent:#dc5f35; --accent-dark:#ad4321; --line:#eaded3; --green:#32745f; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--ink); background:linear-gradient(180deg,#fff3e8 0,#fffaf4 330px); }
+    header { max-width:1040px; margin:auto; padding:28px 22px 8px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand { font-size:1.4rem; font-weight:850; letter-spacing:-.04em; }
+    .brand span { color:var(--accent); }
+    main { max-width:1040px; margin:auto; padding:34px 22px 70px; }
+    .hero { display:grid; grid-template-columns:1.4fr .9fr; gap:28px; align-items:center; padding:36px; background:rgba(255,255,255,.72); border:1px solid rgba(234,222,211,.9); border-radius:28px; box-shadow:0 16px 44px rgba(91,56,35,.08); }
+    h1 { font-size:clamp(2.15rem,5vw,4.5rem); line-height:.98; letter-spacing:-.065em; margin:0 0 18px; max-width:640px; }
+    .lead { color:var(--muted); font-size:1.08rem; line-height:1.6; max-width:600px; margin:0 0 23px; }
+    form { display:flex; gap:10px; max-width:570px; }
+    input { flex:1; min-width:0; border:1px solid var(--line); border-radius:12px; padding:14px 15px; font:inherit; background:#fff; outline:none; }
+    input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #f9d8ca; }
+    button { border:0; border-radius:12px; padding:14px 17px; font:inherit; font-weight:750; cursor:pointer; background:var(--accent); color:#fff; transition:.15s ease; }
+    button:hover { background:var(--accent-dark); transform:translateY(-1px); }
+    .hero-art { min-height:218px; border-radius:22px; background:radial-gradient(circle at 66% 30%,#ffd699 0 9%,transparent 10%),radial-gradient(circle at 38% 70%,#e98a61 0 14%,transparent 15%),radial-gradient(circle at 72% 72%,#8bbb71 0 12%,transparent 13%),linear-gradient(135deg,#f7c8a8,#f4e1be); position:relative; overflow:hidden; }
+    .hero-art::after { content:"🍳"; font-size:108px; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-12deg); filter:drop-shadow(0 12px 8px rgba(80,43,23,.18)); }
+    .section-title { margin:43px 0 16px; font-size:1.35rem; letter-spacing:-.035em; }
+    #results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; }
+    .recipe { padding:20px; border:1px solid var(--line); border-radius:18px; background:var(--card); min-height:178px; display:flex; flex-direction:column; align-items:flex-start; box-shadow:0 6px 18px rgba(91,56,35,.04); }
+    .emoji { font-size:2.25rem; margin-bottom:8px; }
+    .recipe h3 { margin:0 0 7px; font-size:1.08rem; letter-spacing:-.025em; }
+    .recipe p { color:var(--muted); margin:0 0 14px; line-height:1.45; font-size:.93rem; }
+    .tag { display:inline-block; padding:5px 8px; border-radius:999px; background:#e6f1eb; color:var(--green); font-size:.76rem; font-weight:700; margin-top:auto; }
+    .empty { grid-column:1/-1; padding:28px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:18px; }
+    footer { color:var(--muted); text-align:center; font-size:.88rem; padding:0 22px 30px; }
+    @media (max-width:720px) { header { padding-top:19px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { min-height:130px; } .hero-art::after { font-size:76px; } #results { grid-template-columns:1fr; } form { flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">What’s <span>Cooking?</span></div>
+    <button type="button" id="surprise">Surprise me</button>
+  </header>
+  <main>
+    <section class="hero">
+      <div>
+        <h1>Make dinner from what you already have.</h1>
+        <p class="lead">Enter ingredients from your fridge, pantry, or stash. What’s Cooking suggests simple meals you can make tonight.</p>
+        <form id="ingredientForm">
+          <input id="ingredients" type="text" autocomplete="off" placeholder="Try: chicken, rice, broccoli" aria-label="Ingredients" />
+          <button type="submit">Find recipes</button>
+        </form>
+      </div>
+      <div class="hero-art" aria-hidden="true"></div>
+    </section>
+    <h2 class="section-title" id="resultTitle">Popular ideas</h2>
+    <section id="results" aria-live="polite"></section>
+  </main>
+  <footer>What’s Cooking · Your kitchen, your next meal.</footer>
+  <script>
+    const recipes = [
+      {name:'Chicken & Rice Skillet', ingredients:['chicken','rice','broccoli','onion'], text:'One-pan comfort food with whatever vegetables you have.', emoji:'🍗', tag:'25 minutes'},
+      {name:'Pantry Pasta', ingredients:['pasta','tomato','garlic','onion','cheese'], text:'A fast, flexible pasta dinner built around pantry basics.', emoji:'🍝', tag:'20 minutes'},
+      {name:'Loaded Veggie Omelet', ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', emoji:'🍳', tag:'15 minutes'},
+      {name:'Crispy Fried Rice', ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', emoji:'🍚', tag:'20 minutes'},
+      {name:'Black Bean Tacos', ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', emoji:'🌮', tag:'15 minutes'},
+      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', emoji:'🥖', tag:'10 minutes'}
+    ];
+    const results = document.getElementById('results');
+    const title = document.getElementById('resultTitle');
+    const input = document.getElementById('ingredients');
+    function render(items) {
+      results.innerHTML = items.length ? items.map(r => `<article class="recipe"><div class="emoji">${r.emoji}</div><h3>${r.name}</h3><p>${r.text}</p><span class="tag">${r.tag}</span></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
+    }
+    function findRecipes(query) {
+      const terms = query.toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
+      if (!terms.length) { title.textContent = 'Popular ideas'; render(recipes); return; }
+      const ranked = recipes.map(r => ({...r, score:r.ingredients.filter(i => terms.some(t => i.includes(t) || t.includes(i))).length})).filter(r => r.score > 0).sort((a,b) => b.score-a.score);
+      title.textContent = `Ideas for: ${terms.join(', ')}`;
+      render(ranked);
+    }
+    document.getElementById('ingredientForm').addEventListener('submit', e => { e.preventDefault(); findRecipes(input.value); });
+    document.getElementById('surprise').addEventListener('click', () => { const choices=['chicken, rice','eggs, cheese','pasta, garlic','beans, tortilla']; input.value=choices[Math.floor(Math.random()*choices.length)]; findRecipes(input.value); });
+    render(recipes);
+  </script>
+</body>
+</html>
