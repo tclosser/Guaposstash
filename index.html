@@ -220,6 +220,20 @@
     .drink.moc { background:linear-gradient(135deg,rgba(30,227,161,.16),rgba(18,179,214,.16))!important; }
     .drink .de { font-size:1.8rem; display:block; } .drink b { display:block; font-size:.92rem; } .drink small { color:var(--muted); font-weight:500; font-size:.74rem; }
     .drink:hover .de { animation:wiggle .5s; }
+    .party-cta { width:100%; max-width:570px; margin-top:12px; display:block; text-align:left; background:linear-gradient(120deg,#ffc93d,#ff3d8b 50%,#8b5cff)!important; background-size:200% 100%!important; animation:shine 6s ease-in-out infinite; color:#fff; font-size:1.05rem; padding:15px 18px; }
+    .party-cta small { display:block; font-weight:500; opacity:.9; font-size:.8rem; }
+    @keyframes shine { 50% { background-position:100% 0; } }
+    .themes { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:8px 0 14px; }
+    .theme { text-align:left; padding:14px; border-radius:18px; color:#fff; box-shadow:none!important; border:2px solid transparent!important; }
+    .theme.on { border-color:#fff!important; transform:scale(1.02); }
+    .theme .te { font-size:2rem; display:block; } .theme b { display:block; } .theme small { font-weight:500; opacity:.85; font-size:.75rem; }
+    .course { background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:10px; }
+    .course .cl { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--lime); font-weight:800; }
+    .course select { width:100%; margin:6px 0; padding:10px; font:inherit; }
+    .plate { font-size:.86rem; color:var(--muted); line-height:1.5; margin-top:6px; } .plate b { color:#fff; }
+    .decor { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .decor div { background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:14px; padding:10px; font-size:.84rem; }
+    .decor a { color:var(--lime); font-weight:700; text-decoration:none; font-size:.78rem; }
+    .tl li { margin-bottom:6px; } .tl b { color:var(--sun); }
   </style>
 </head>
 <body>
@@ -238,6 +252,7 @@
           <button type="submit">Find recipes</button>
           <button type="button" class="cam-btn" id="openCam">📷 Scan</button>
         </form>
+        <button type="button" id="partyBtn" class="party-cta">🎉 Plan a dinner party <small>themes · menus · plating · table décor</small></button>
         <div id="camPanel">
           <div class="cam-wrap"><video id="video" playsinline muted autoplay></video><img id="shot" alt="Captured photo" hidden></div>
           <div class="cam-actions">
@@ -296,6 +311,7 @@
   <div class="cook" id="cook" role="dialog" aria-modal="true"></div>
   <div class="modal" id="revModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="revBody"></div></div>
   <div class="modal" id="drinkModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="drinkBody"></div></div>
+  <div class="modal" id="partyModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="partyBody" style="max-width:720px"></div></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
@@ -597,7 +613,7 @@
         return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your goal ${periodLabel()}. ${after>=goal?`<b style="color:var(--lime)">That gets you to your ${l.toLowerCase()} goal ✓</b>`:`You'd still need <b>${Math.round(left)}${u}</b>.`}</div>`; }).join('');
       const dietTags=Object.entries(DIETS).filter(([,[t]])=>(r.diets||'').split(' ').includes(t)).map(([,[,lab]])=>`<span class="nb">${lab}</span>`).join('');
       const clash=G.diets.filter(d=>!(r.diets||'').split(' ').includes(DIETS[d][0])).map(d=>DIETS[d][1]);
-      $('detBody').innerHTML=`<img class="det-photo" src="${r.img}" alt="${r.name}">
+      $('detBody').innerHTML=`${r.img?`<img class="det-photo" src="${r.img}" alt="${r.name}">`:`<div class="det-photo" style="display:grid;place-items:center;font-size:5rem;background:linear-gradient(135deg,#ff3d8b,#8b5cff 55%,#1ee3a1)">${r.emoji}</div>`}
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px"><h2>${r.emoji} ${r.name}</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
         <p style="color:var(--muted);margin:4px 0 0">${r.text} · ${r.tag}</p>${dietTags?`<div class="nut-badges" style="margin:8px 0 0">${dietTags}</div>`:''}${clash.length?`<div class="impact" style="margin:10px 0 0;background:rgba(255,61,139,.12);border-color:rgba(255,61,139,.4)">⚠ Not ${clash.join(', ')} as written. Swap ingredients before cooking.</div>`:''}
         <div class="stepper"><button type="button" id="sMinus" aria-label="Fewer servings">−</button><span class="num" id="sNum">${n}</span><span>serving${n>1?'s':''}</span><button type="button" id="sPlus" aria-label="More servings">+</button></div>
@@ -985,6 +1001,124 @@
     document.addEventListener('change',e=>{ if(e.target.id==='alcT'){ showAlc=e.target.checked; localStorage.setItem('wc_alc',showAlc?'1':'0'); renderDetail(); } });
     document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('drinkModal').classList.remove('open'); });
     $('drinkModal').style.zIndex=70;
+
+    // ---- Dinner party planner: guests, theme, courses, amounts, steps, plating, décor ----
+    const EXTRA=[
+      {name:'Chips & Guacamole',party:1,diets:'veg vegan gf df',emoji:'🥑',tag:'10 minutes',text:'Chunky, zesty guac with warm tortilla chips.',ingredients:['avocado','lime','onion','tomato','tortilla chips'],qty:[['avocado',0.5,''],['lime juice',1,'tsp'],['red onion',1,'tbsp'],['tomato',0.125,''],['cilantro',1,'tsp'],['tortilla chips',1,'oz']],nut:{cal:280,protein:3,carbs:24,fat:20,satfat:3,fiber:8,sugar:1,sodium:190},steps:['Halve the avocados, remove pits, and scoop into a bowl.','Mash with a fork, leaving it a little chunky.','Stir in lime juice, onion, tomato, cilantro, and salt to taste.','Taste and adjust lime and salt. Serve right away with chips.']},
+      {name:'Mexican Street Corn',party:1,diets:'veg gf',emoji:'🌽',tag:'15 minutes',text:'Charred corn with creamy lime sauce, cotija, and chili.',ingredients:['corn','mayonnaise','cheese','lime','chili powder'],qty:[['ear of corn',1,''],['mayonnaise',1,'tbsp'],['cotija or feta',1,'tbsp'],['lime',0.25,''],['chili powder',0.25,'tsp']],nut:{cal:210,protein:5,carbs:22,fat:13,satfat:3,fiber:3,sugar:6,sodium:260},steps:['Heat a grill pan or skillet over high.','Char the corn 8 minutes, turning, until spotty and black in places.','Brush with mayo, then roll in crumbled cheese.','Dust with chili powder and squeeze lime over the top.']},
+      {name:'Cinnamon Sugar Crisps',party:1,diets:'veg',emoji:'🍩',tag:'15 minutes',text:'Churro-style tortilla crisps with chocolate dip.',ingredients:['tortilla','butter','sugar','cinnamon','chocolate'],qty:[['flour tortilla',1,''],['butter (melted)',1,'tsp'],['sugar',1,'tbsp'],['cinnamon',0.25,'tsp'],['chocolate chips',1,'tbsp']],nut:{cal:230,protein:4,carbs:36,fat:9,satfat:4.5,fiber:2,sugar:17,sodium:230},steps:['Heat the oven to 375°F.','Brush tortillas with melted butter and cut into 8 wedges.','Toss with cinnamon sugar and spread on a baking sheet.','Bake 10 minutes until crisp.','Melt chocolate chips in the microwave in 20-second bursts for dipping.']},
+      {name:'Tomato Basil Bruschetta',party:1,diets:'veg vegan df',emoji:'🍅',tag:'15 minutes',text:'Crisp garlic toasts topped with fresh tomato and basil.',ingredients:['bread','tomato','basil','garlic','olive oil'],qty:[['baguette slices',3,''],['tomato',0.5,''],['basil leaves',3,''],['garlic',0.5,'clove'],['olive oil',2,'tsp'],['balsamic glaze',1,'tsp']],nut:{cal:190,protein:5,carbs:28,fat:7,satfat:1,fiber:2,sugar:4,sodium:300},steps:['Dice tomatoes and toss with chopped basil, a little oil, and salt; rest 10 minutes.','Brush baguette slices with oil and toast 6 minutes at 400°F.','Rub each warm toast with a cut garlic clove.','Spoon tomatoes on top and drizzle with balsamic glaze just before serving.']},
+      {name:'Affogato',party:1,diets:'veg gf',emoji:'☕',tag:'5 minutes',text:'Vanilla gelato “drowned” in hot espresso.',ingredients:['ice cream','espresso','chocolate'],qty:[['vanilla gelato or ice cream',0.5,'cup'],['hot espresso or strong coffee',2,'oz'],['shaved chocolate',1,'tsp']],nut:{cal:170,protein:3,carbs:20,fat:9,satfat:5,fiber:0,sugar:18,sodium:55},steps:['Chill small glasses or cups in the freezer for 10 minutes.','Brew espresso or very strong coffee.','Scoop gelato into each glass.','At the table, pour the hot espresso over and top with shaved chocolate.']},
+      {name:'Yogurt Berry Parfait',party:1,diets:'veg gf',emoji:'🍨',tag:'5 minutes',text:'Layers of creamy yogurt, berries, and crunchy granola.',ingredients:['greek yogurt','berries','granola','honey'],qty:[['greek yogurt',0.75,'cup'],['berries',0.5,'cup'],['granola',0.25,'cup'],['honey',1,'tsp']],nut:{cal:290,protein:19,carbs:40,fat:6,satfat:1,fiber:5,sugar:24,sodium:70},steps:['Spoon a layer of yogurt into a clear glass.','Add berries, then granola.','Repeat the layers.','Finish with a drizzle of honey and a few berries on top.']},
+      {name:'Sea Salt Edamame',party:1,diets:'veg vegan gf df lowcarb',emoji:'🫛',tag:'8 minutes',text:'Warm, salty pods with a hit of garlic chili oil.',ingredients:['edamame','salt','garlic'],qty:[['edamame in pods',1,'cup'],['flaky sea salt',0.25,'tsp'],['chili crisp or chili oil',0.5,'tsp']],nut:{cal:190,protein:17,carbs:14,fat:8,satfat:1,fiber:8,sugar:3,sodium:300},steps:['Boil edamame 5 minutes.','Drain well and toss with sea salt.','Drizzle with chili oil and toss again.','Serve warm with an empty bowl for the shells.']},
+      {name:'Mango with Chili Lime',party:1,diets:'veg vegan gf df',emoji:'🥭',tag:'5 minutes',text:'Juicy mango with a sweet-spicy-sour kick.',ingredients:['mango','lime','chili powder'],qty:[['mango',0.5,''],['lime juice',1,'tsp'],['chili-lime seasoning (Tajín)',0.25,'tsp']],nut:{cal:105,protein:1,carbs:26,fat:0,satfat:0,fiber:3,sugar:23,sodium:90},steps:['Cut the cheeks off the mango and score the flesh into cubes.','Push the skin up so the cubes pop out, or slice them off.','Squeeze lime over and sprinkle with chili-lime seasoning.']},
+      {name:'Cinnamon Baked Apples',party:1,diets:'veg gf',emoji:'🍎',tag:'35 minutes',text:'Warm, jammy apples with oats, butter, and a scoop of ice cream.',ingredients:['apple','butter','oatmeal','cinnamon','ice cream'],qty:[['apple',1,''],['rolled oats',2,'tbsp'],['brown sugar',1,'tbsp'],['butter',1,'tsp'],['cinnamon',0.25,'tsp'],['vanilla ice cream',0.25,'cup']],nut:{cal:300,protein:4,carbs:52,fat:10,satfat:5,fiber:6,sugar:36,sodium:40},steps:['Heat the oven to 375°F.','Core the apples, leaving the bottom intact.','Mix oats, brown sugar, butter, and cinnamon; pack into the apples.','Bake in a dish with a splash of water for 30 minutes until tender.','Serve warm with a small scoop of ice cream.']}
+    ];
+    EXTRA.forEach(r=>{ recipes.push(r); STEPS[r.name]=r.steps; });
+    const PLATE={
+      'Chicken & Rice Skillet':'Serve it <b>right in the skillet</b> on a wooden board. Fan the chicken on top, tuck broccoli between, and finish with chopped parsley and a lemon wedge.',
+      'Pantry Pasta':'Twirl pasta with tongs into a <b>tall nest</b> in a shallow bowl. Spoon extra sauce around, shave parmesan over, and top with a basil sprig.',
+      'Loaded Veggie Omelet':'Slide onto a <b>warm white plate</b> seam-side down. Add a small handful of dressed greens and a sprinkle of chives.',
+      'Crispy Fried Rice':'Pack rice into a <b>bowl, flip it onto the plate</b> for a neat dome. Top with sliced scallions and sesame seeds; chopsticks on the side.',
+      'Black Bean Tacos':'Stand tacos <b>upright in a taco holder</b> or lean them together. Add lime wedges, cilantro, and a small bowl of salsa.',
+      'Garlic Butter Toast':'Stack slices <b>shingled on a board</b> with a small dish of warm marinara for dipping.',
+      'Veggie Stir-Fry':'Spoon rice to one side of a <b>wide bowl</b>, veggies to the other. Drizzle sauce over and sprinkle sesame seeds.',
+      'Fresh Fruit Salad':'Serve in a <b>clear glass bowl</b> so the colors show. Top with mint leaves.',
+      'Loaded Baked Potato':'Split open on a <b>plate with parchment</b>. Pile toppings high and add chives on top.',
+      'Avocado Toast':'Cut toast <b>diagonally</b>, set the egg on top, and scatter tomatoes, chili flakes, and microgreens.',
+      'Chips & Guacamole':'Serve guac in a <b>molcajete or stone bowl</b> with chips fanned around it. Garnish with a lime wheel and cilantro.',
+      'Mexican Street Corn':'Lay cobs <b>diagonally on a long platter</b> with lime wedges; dust with extra chili right before serving.',
+      'Cinnamon Sugar Crisps':'Pile crisps in a <b>paper-lined basket</b> with the chocolate dip in a small bowl in the middle.',
+      'Tomato Basil Bruschetta':'Line toasts in a <b>row on a long board</b>; drizzle balsamic in a zigzag across them all.',
+      'Affogato':'Serve gelato in <b>small glasses</b> with the espresso in a little pitcher so guests pour it themselves.',
+      'Yogurt Berry Parfait':'Layer in <b>clear jars or glasses</b> so the stripes show; top with one perfect berry.',
+      'Sea Salt Edamame':'Heap in a <b>small ceramic bowl</b> with an empty bowl beside it for shells.',
+      'Mango with Chili Lime':'Serve mango "hedgehogs" or cubes on <b>skewers</b> with a lime wedge.',
+      'Cinnamon Baked Apples':'Set each apple in a <b>shallow bowl</b>, spoon pan juices around, add ice cream on top at the last second.'
+    };
+    const THEMES={
+      fiesta:{n:'Taco Fiesta',e:'🌮',bg:'linear-gradient(135deg,#ff7a45,#ff3d8b)',vibe:'Colorful, loud, and fun. Salsa music and string lights.',
+        courses:{Appetizer:['Chips & Guacamole','Mexican Street Corn'],Main:['Black Bean Tacos'],Side:['Mexican Street Corn','Fresh Fruit Salad'],Dessert:['Cinnamon Sugar Crisps','Mango with Chili Lime']},drinks:['margarita','paloma','virginmarg','horchata'],
+        decor:[['Papel picado banner','papel picado banner'],['Serape table runner','serape table runner'],['Mini succulents in terracotta','mini succulent terracotta pots'],['Colorful melamine plates','colorful melamine plates'],['Taco holders','taco holders'],['Warm string lights','warm white string lights']]},
+      trattoria:{n:'Italian Trattoria',e:'🍝',bg:'linear-gradient(135deg,#d62d2d,#2e8b57)',vibe:'Candlelit, rustic, and slow. Checkered cloth and Italian jazz.',
+        courses:{Appetizer:['Tomato Basil Bruschetta','Garlic Butter Toast'],Main:['Pantry Pasta'],Side:['Garlic Butter Toast','Tomato Basil Bruschetta'],Dessert:['Affogato']},drinks:['aperol','basilsoda'],
+        decor:[['Red gingham tablecloth','red gingham tablecloth'],['Taper candles in wine bottles','taper candles'],['Olive oil dipping dishes','olive oil dipping dish set'],['Potted basil centerpiece','potted basil plant'],['Linen napkins','linen napkins'],['Wooden serving board','wood charcuterie board']]},
+      brunch:{n:'Sunday Brunch',e:'🥂',bg:'linear-gradient(135deg,#ffc93d,#ff8fb1)',vibe:'Bright, airy, and relaxed. Fresh flowers and morning light.',
+        courses:{Appetizer:['Fresh Fruit Salad','Yogurt Berry Parfait'],Main:['Loaded Veggie Omelet','Avocado Toast'],Side:['Avocado Toast','Garlic Butter Toast'],Dessert:['Yogurt Berry Parfait']},drinks:['mimosa','oj','berry'],
+        decor:[['Bud vases with fresh flowers','bud vases set'],['Pastel dinner plates','pastel plates set'],['Cake stand for pastries','cake stand'],['Mimosa bar sign','mimosa bar sign'],['Cloth napkins with rings','napkin rings'],['Glass juice carafe','glass carafe']]},
+      asian:{n:'Asian Night',e:'🥢',bg:'linear-gradient(135deg,#12b3d6,#8b5cff)',vibe:'Sleek and shareable. Family-style bowls and paper lanterns.',
+        courses:{Appetizer:['Sea Salt Edamame'],Main:['Crispy Fried Rice','Veggie Stir-Fry'],Side:['Veggie Stir-Fry','Sea Salt Edamame'],Dessert:['Mango with Chili Lime']},drinks:['lychee','gingertea','highball'],
+        decor:[['Chopsticks with rests','chopsticks and rests set'],['Bamboo placemats','bamboo placemats'],['Paper lanterns','paper lanterns'],['Small ceramic bowls','small ceramic bowls set'],['Soy sauce dishes','soy sauce dishes'],['Bonsai or orchid centerpiece','orchid plant']]},
+      cozy:{n:'Cozy Comfort Night',e:'🕯️',bg:'linear-gradient(135deg,#8b5a2b,#c04d4d)',vibe:'Warm and homey. Candles, blankets, and slow music.',
+        courses:{Appetizer:['Garlic Butter Toast'],Main:['Chicken & Rice Skillet','Loaded Baked Potato'],Side:['Loaded Baked Potato','Veggie Stir-Fry'],Dessert:['Cinnamon Baked Apples']},drinks:['oldfash','cider'],
+        decor:[['Plaid table runner','plaid table runner'],['Pillar candles','pillar candles set'],['Wood slice chargers','wood slice chargers'],['Cast iron serving skillet','cast iron skillet'],['Chunky knit throw','knit throw blanket'],['Mini pumpkins or pinecones','decorative pinecones']]}
+    };
+    const COURSE_ORDER=['Appetizer','Main','Side','Dessert'];
+    const courseSet=n=>n===1?['Main']:n===2?['Main','Dessert']:n===3?['Appetizer','Main','Dessert']:COURSE_ORDER;
+    let PT=JSON.parse(localStorage.getItem('wc_party')||'{"guests":6,"theme":"fiesta","courses":3,"pick":{}}');
+    const saveP=()=>localStorage.setItem('wc_party',JSON.stringify(PT));
+    const amazon=q=>'https://www.amazon.com/s?k='+encodeURIComponent(q)+(PARTNERS.amazonTag?'&tag='+PARTNERS.amazonTag:'');
+    function partyMenu(){ const th=THEMES[PT.theme]; return courseSet(PT.courses).map(c=>{ const opts=th.courses[c]; const nm=(PT.pick[PT.theme+c]&&opts.includes(PT.pick[PT.theme+c]))?PT.pick[PT.theme+c]:opts[0]; return {c,opts,r:recipes.find(x=>x.name===nm)}; }); }
+    function renderParty(){ const th=THEMES[PT.theme], menu=partyMenu(), g=PT.guests;
+      const all={}; menu.forEach(({r})=>r.qty.forEach(([n,q,u])=>{ const k=n+'|'+u; all[k]=(all[k]||0)+q*g; }));
+      const shop=Object.entries(all).map(([k,q])=>{ const [n,u]=k.split('|'); return [n,q,u]; }).sort((a,b)=>a[0].localeCompare(b[0]));
+      const nut=menu.reduce((a,{r})=>{ a.cal+=r.nut.cal; a.protein+=r.nut.protein; return a; },{cal:0,protein:0});
+      const drinkN=Math.ceil(g*2);
+      $('partyBody').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2>🎉 Dinner party planner</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <h3 style="margin:12px 0 0">How many people?</h3>
+        <div class="stepper"><button type="button" data-pg="-1" aria-label="Fewer">−</button><span class="num">${g}</span><span>guest${g>1?'s':''}</span><button type="button" data-pg="1" aria-label="More">+</button></div>
+        <h3 style="margin:4px 0 0">Pick a theme</h3>
+        <div class="themes">${Object.entries(THEMES).map(([k,t])=>`<button type="button" class="theme ${PT.theme===k?'on':''}" data-theme="${k}" style="background:${t.bg}!important"><span class="te">${t.e}</span><b>${t.n}</b><small>${t.vibe.split('.')[0]}</small></button>`).join('')}</div>
+        <h3 style="margin:4px 0 6px">How many courses?</h3>
+        <div class="seg">${[1,2,3,4].map(n=>`<button type="button" data-courses="${n}" class="${PT.courses===n?'on':''}">${n} course${n>1?'s':''}</button>`).join('')}</div>
+        <h2 style="margin:18px 0 4px">${th.e} ${th.n} menu for ${g}</h2><p style="color:var(--muted);margin:0 0 10px">${th.vibe}</p>
+        ${menu.map(({c,opts,r})=>`<div class="course"><div class="cl">${c}</div>
+          ${opts.length>1?`<select data-pick="${c}" aria-label="${c} choice">${opts.map(o=>`<option ${o===r.name?'selected':''}>${o}</option>`).join('')}</select>`:`<h3 style="margin:4px 0">${r.emoji} ${r.name}</h3>`}
+          <div style="color:var(--muted);font-size:.85rem">${r.text} · ${r.tag} · ${r.nut.cal} cal/serving</div>
+          <div class="plate">🍽️ <b>Plating:</b> ${PLATE[r.name]||'Serve family-style on a large platter.'}</div>
+          <div class="cam-actions"><button type="button" data-cookp="${r.name}">👩‍🍳 Recipe &amp; steps for ${g}</button></div></div>`).join('')}
+        <div class="impact">Per guest, the full menu is about <b>${nut.cal} calories</b> and <b>${nut.protein}g protein</b>.</div>
+        <h3 style="margin:14px 0 6px">🍹 Theme drinks <small style="color:var(--muted);font-weight:500">— plan ~${drinkN} drinks total</small></h3>
+        <div class="drinks">${th.drinks.map(k=>{ const d=DRINKS[k]; return `<button type="button" class="drink ${d.alc?'':'moc'}" data-drink="${k}"><span class="de">${d.e}</span><b>${d.n}</b><small>${d.alc?'Cocktail':'Mocktail'}</small></button>`; }).join('')}</div>
+        <h3 style="margin:14px 0 6px">🛒 Shopping list for ${g}</h3>
+        <details><summary style="cursor:pointer;font-weight:700">${shop.length} ingredients (tap to see amounts)</summary><ul class="ings" style="margin-top:8px">${shop.map(([n,q,u])=>`<li><span>${n}</span><b>${fmtQ(q,u,1)}</b></li>`).join('')}</ul></details>
+        <button type="button" id="partyShop" style="width:100%;margin-top:8px">🛒 Add all party ingredients to my list</button>
+        <h3 style="margin:18px 0 6px">✨ Table look &amp; feel</h3>
+        <div class="decor">${th.decor.map(([n,q])=>`<div>${n}<br><a href="${amazon(q)}" target="_blank" rel="noopener">Shop on Amazon →</a> · <a href="#" data-decor="${n}">+ List</a></div>`).join('')}</div>
+        <h3 style="margin:18px 0 6px">⏰ Party-day game plan</h3>
+        <ol class="tl" style="padding-left:20px;line-height:1.5">
+          <li><b>2–3 days before:</b> Shop your list and order décor.</li>
+          <li><b>Day before:</b> Set the table, chill drinks, and prep anything that holds (chop veggies, make sauces${menu.some(m=>m.c==='Dessert')?', prep dessert parts':''}).</li>
+          <li><b>2 hours before:</b> Start the ${menu.find(m=>m.c==='Main').r.name.toLowerCase()} and any oven items.</li>
+          <li><b>1 hour before:</b> Mix a pitcher of ${DRINKS[th.drinks[0]].n.toLowerCase()} and set out the ${(menu.find(m=>m.c==='Appetizer')||menu[0]).r.name.toLowerCase()}.</li>
+          <li><b>Guests arrive:</b> Serve drinks and ${menu.find(m=>m.c==='Appetizer')?'the appetizer':'snacks'}. Lights low, music on.</li>
+          <li><b>Dinner:</b> Plate the main as shown above${menu.some(m=>m.c==='Side')?' with the side family-style':''}.</li>
+          ${menu.some(m=>m.c==='Dessert')?`<li><b>Dessert:</b> Finish the ${menu.find(m=>m.c==='Dessert').r.name.toLowerCase()} right before serving.</li>`:''}
+        </ol>
+        <p style="color:var(--muted);font-size:.72rem">Ask guests about allergies ahead of time. Nutrition is estimated.</p>`;
+    }
+    function openParty(){ renderParty(); $('partyModal').classList.add('open'); burst($('partyBtn'),'good',16); }
+    $('partyBtn').addEventListener('click',openParty);
+    $('partyModal').addEventListener('click',e=>{ const b=e.target.closest('button,a'); if(e.target.id==='partyModal'||(b&&b.dataset.close)){ $('partyModal').classList.remove('open'); return; } if(!b) return;
+      if(b.dataset.pg){ PT.guests=Math.max(1,Math.min(40,PT.guests+ +b.dataset.pg)); saveP(); renderParty(); }
+      if(b.dataset.theme){ PT.theme=b.dataset.theme; saveP(); renderParty(); burst(b,'good',10); toast(THEMES[PT.theme].e+' '+THEMES[PT.theme].n+' it is!'); }
+      if(b.dataset.courses){ PT.courses=+b.dataset.courses; saveP(); renderParty(); }
+      if(b.dataset.cookp){ servings=PT.guests; localStorage.setItem('wc_serv',servings); cur=recipes.find(r=>r.name===b.dataset.cookp); renderDetail(); $('detModal').classList.add('open'); }
+      if(b.id==='partyShop'){ const menu=partyMenu(), all={}; menu.forEach(({r})=>r.qty.forEach(([n,q,u])=>{ const k=n+'|'+u; all[k]=(all[k]||0)+q*PT.guests; }));
+        Object.entries(all).forEach(([k,q])=>{ const [n,u]=k.split('|'); addGoalItem(n.replace(/\(.*?\)/,'').trim(),fmtQ(q,u,1),THEMES[PT.theme].n); }); burst(b,'add'); bump($('listBtn')); toast('Party shopping list ready 🛒'); }
+      if(b.dataset.decor){ e.preventDefault(); addGoalItem(b.dataset.decor,'','table décor'); burst(b,'add',8); toast('Added '+b.dataset.decor+' ✨'); }
+    });
+    $('partyModal').addEventListener('change',e=>{ if(e.target.dataset.pick){ PT.pick[PT.theme+e.target.dataset.pick]=e.target.value; saveP(); renderParty(); } });
+    $('detModal').style.zIndex=65; $('drinkModal').style.zIndex=75;
+    // plating on every recipe
+    const _rd5=renderDetail;
+    renderDetail=function(){ _rd5(); if(!cur||!PLATE[cur.name]) return; const a=$('detBody').querySelector('.facts'); a&&a.insertAdjacentHTML('beforebegin',`<div class="tweak" style="background:rgba(255,201,61,.1);border-color:rgba(255,201,61,.4)">🍽️ <b>How to plate:</b> ${PLATE[cur.name]}</div>`); };
+    // add plating as the final cook-mode step
+    Object.keys(STEPS).forEach(k=>{ if(PLATE[k]&&!STEPS[k].some(x=>x.startsWith('Plate it:'))) STEPS[k].push('Plate it: '+PLATE[k].replace(/<\/?b>/g,'')); });
+    // keep party-only dishes out of the main feed unless they match what's on hand
+    const _render6=render;
+    render=function(items){ const T=terms(); _render6(T.length?items:items.filter(r=>!r.party)); };
+    render(recipes);
   </script>
 </body>
 </html>
