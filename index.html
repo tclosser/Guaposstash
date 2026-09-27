@@ -67,8 +67,18 @@
           <div class="cam-actions">
             <button type="button" id="snap">Identify ingredients</button>
             <button type="button" class="ghost" id="upload">Upload photo</button>
+            <button type="button" class="ghost" id="aiSettings">⚙ AI</button>
             <button type="button" class="ghost" id="closeCam">Close</button>
             <input type="file" id="fileIn" accept="image/*" capture="environment" hidden>
+          </div>
+          <div id="aiBox" hidden style="margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff">
+            <strong>AI vision (more accurate)</strong>
+            <p style="color:var(--muted);font-size:.85rem;margin:6px 0 10px">Your key is saved only in this browser — never uploaded to GitHub. Gemini has a free key at aistudio.google.com/apikey. Leave blank to use the free on-device scanner.</p>
+            <select id="aiProvider" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);font:inherit;margin-bottom:8px">
+              <option value="gemini">Google Gemini (free tier)</option><option value="openai">OpenAI (GPT-4o mini)</option>
+            </select>
+            <input id="aiKey" type="password" placeholder="Paste API key" style="width:100%;margin-bottom:8px">
+            <div class="cam-actions" style="margin:0"><button type="button" id="aiSave">Save</button><button type="button" class="ghost" id="aiClear">Remove key</button></div>
           </div>
           <div id="camStatus"></div>
           <div id="chips"></div>
@@ -140,7 +150,7 @@
     }
     function closeCam(){ if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; $('camPanel').classList.remove('open'); }
     function toIngredient(label){ label=label.toLowerCase(); for (const part of label.split(',').map(x=>x.trim())) { if (MAP[part]) return MAP[part]; } for (const k in MAP) if (label.includes(k)) return MAP[k]; return null; }
-    async function identify(source){
+    let identify = async function(source){
       $('camStatus').dataset.busy='1'; $('camStatus').textContent='Identifying…';
       try {
         await loadModels();
@@ -153,7 +163,7 @@
           'No ingredients recognized. Try better light, one item at a time, or type them in.';
       } catch(e){ $('camStatus').textContent='Something went wrong identifying the photo.'; }
       delete $('camStatus').dataset.busy;
-    }
+    };
     function renderChips(){
       $('chips').innerHTML=[...found].map(([k,on])=>`<span class="chip ${on?'':'off'}" data-k="${k}">${k}</span>`).join('');
       const active=[...found].filter(([,on])=>on).map(([k])=>k);
@@ -167,6 +177,42 @@
     $('snap').addEventListener('click',()=>{ if(stream && !$('video').hidden) identify($('video')); else $('fileIn').click(); });
     $('upload').addEventListener('click',()=>$('fileIn').click());
     $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; const img=$('shot'); img.onload=()=>{ $('video').hidden=true; img.hidden=false; identify(img); }; img.src=URL.createObjectURL(f); e.target.value=''; });
+
+    // ---- AI vision (bring-your-own key, stored locally) ----
+    const aiCfg = () => ({provider:localStorage.getItem('wc_ai_provider')||'gemini', key:localStorage.getItem('wc_ai_key')||''});
+    $('aiSettings').addEventListener('click',()=>{ const c=aiCfg(); $('aiProvider').value=c.provider; $('aiKey').value=c.key; $('aiBox').hidden=!$('aiBox').hidden; });
+    $('aiSave').addEventListener('click',()=>{ localStorage.setItem('wc_ai_provider',$('aiProvider').value); localStorage.setItem('wc_ai_key',$('aiKey').value.trim()); $('aiBox').hidden=true; $('camStatus').textContent=$('aiKey').value.trim()?'AI vision on. Tap Identify.':'Using on-device scanner.'; });
+    $('aiClear').addEventListener('click',()=>{ localStorage.removeItem('wc_ai_key'); $('aiKey').value=''; $('camStatus').textContent='Key removed. Using on-device scanner.'; });
+    function toJpeg(source){
+      const w=source.videoWidth||source.naturalWidth, h=source.videoHeight||source.naturalHeight, sc=Math.min(1,1024/Math.max(w,h));
+      const c=document.createElement('canvas'); c.width=Math.round(w*sc); c.height=Math.round(h*sc);
+      c.getContext('2d').drawImage(source,0,0,c.width,c.height); return c.toDataURL('image/jpeg',0.85).split(',')[1];
+    }
+    const PROMPT='List every food ingredient visible in this photo (produce, meats, dairy, eggs, grains, packaged foods by what they contain, condiments, spices). Use short, common, lowercase singular names like "chicken", "rice", "tomato", "cheese", "eggs". Respond with ONLY a JSON array of strings.';
+    async function aiIdentify(source){
+      const {provider,key}=aiCfg(), b64=toJpeg(source); let text;
+      if (provider==='openai') {
+        const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
+          body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:[{type:'text',text:PROMPT},{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+        const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||r.status); text=j.choices[0].message.content;
+      } else {
+        const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:PROMPT},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{responseMimeType:'application/json'}})});
+        const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||r.status); text=j.candidates[0].content.parts.map(p=>p.text).join('');
+      }
+      const m=text.match(/\[[\s\S]*\]/); return m?JSON.parse(m[0]).map(x=>String(x).toLowerCase().trim()).filter(Boolean):[];
+    }
+    const localIdentify = identify;
+    identify = async function(source){
+      if (!aiCfg().key) return localIdentify(source);
+      $('camStatus').dataset.busy='1'; $('camStatus').textContent='Asking AI…';
+      try {
+        const items=await aiIdentify(source); let added=0;
+        items.forEach(i=>{ if(!found.has(i)){ found.set(i,true); added++; } }); renderChips();
+        $('camStatus').textContent=added?`AI found ${added} new ingredient${added>1?'s':''}. Tap a chip to remove it.`:'AI saw no ingredients. Try another angle.';
+      } catch(e){ $('camStatus').textContent='AI error: '+e.message+' — falling back to on-device.'; delete $('camStatus').dataset.busy; return localIdentify(source); }
+      delete $('camStatus').dataset.busy;
+    };
   </script>
 </body>
 </html>
