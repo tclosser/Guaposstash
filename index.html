@@ -447,15 +447,31 @@
       crackers:[{b:'Ritz',q:'Ritz crackers'},{b:'Triscuit',q:'Triscuit crackers'},{b:'Carr’s',q:"Carr's water crackers"}],
       broth:[{b:'Swanson',q:'Swanson chicken broth'},{b:'Better Than Bouillon',q:'Better Than Bouillon'}],
       cream:[{b:'Horizon Organic',q:'Horizon heavy cream'}], milk:[{b:'Fairlife',q:'Fairlife milk'},{b:'Horizon Organic',q:'Horizon milk'}],
+      'greek yogurt':[{b:'Chobani',q:'Chobani plain Greek yogurt'},{b:'Fage Total 0%',q:'Fage 0% Greek yogurt'},{b:'Oikos Pro',q:'Oikos Pro yogurt'}],
+      'cottage cheese':[{b:'Good Culture',q:'Good Culture cottage cheese'},{b:'Daisy',q:'Daisy cottage cheese'}],
+      'protein shake':[{b:'Fairlife Core Power',q:'Core Power protein shake'},{b:'Premier Protein',q:'Premier Protein shake'}],
+      'protein bar':[{b:'Quest',q:'Quest protein bar'},{b:'RXBAR',q:'RXBAR'},{b:'ONE',q:'ONE protein bar'}],
+      'canned tuna':[{b:'StarKist',q:'StarKist chunk light tuna'},{b:'Wild Planet',q:'Wild Planet tuna'}],
+      'chicken breast':[{b:'Perdue',q:'Perdue chicken breast'},{b:'Just Bare',q:'Just Bare chicken breast'}],
+      'tofu':[{b:'Nasoya',q:'Nasoya extra firm tofu'},{b:'House Foods',q:'House Foods tofu'}],
+      'edamame':[{b:'Seapoint Farms',q:'Seapoint Farms edamame'}],
+      'lentils':[{b:'Goya',q:'Goya lentils'},{b:'Bob\'s Red Mill',q:"Bob's Red Mill lentils"}],
+      'oatmeal':[{b:'Quaker',q:'Quaker old fashioned oats'},{b:'Bob\'s Red Mill',q:"Bob's Red Mill oats"}],
+      'almonds':[{b:'Blue Diamond',q:'Blue Diamond almonds'},{b:'Wonderful',q:'Wonderful almonds'}],
+      'chia seeds':[{b:'Nutiva',q:'Nutiva chia seeds'}],
+      'turkey jerky':[{b:'Jack Link\'s',q:"Jack Link's turkey jerky"},{b:'Chomps',q:'Chomps turkey stick'}],
+      'string cheese':[{b:'Sargento',q:'Sargento string cheese'},{b:'Frigo',q:'Frigo string cheese'}],
+      'hummus':[{b:'Sabra',q:'Sabra hummus'},{b:'Cedar\'s',q:"Cedar's hummus"}],
       garlic:[{b:'Fresh (any)',q:'fresh garlic'},{b:'Spice World minced',q:'Spice World minced garlic'}]
     };
     let LIST = JSON.parse(localStorage.getItem('wc_list')||'[]');
     const saveList = () => { localStorage.setItem('wc_list',JSON.stringify(LIST)); $('listCount').textContent=LIST.filter(i=>!i.done).length; };
     const itemQuery = i => { const o=(BRANDS[i.name]||[])[i.brand]; return o ? o.q : i.name; };
+    function addGoalItem(name,qty,why){ name=name.toLowerCase(); const ex=LIST.find(i=>i.name===name); if(ex){ ex.qty=qty; ex.why=why; ex.done=false; } else LIST.push({name,done:false,brand:BRANDS[name]?0:-1,qty,why}); saveList(); }
     function addItems(names){ names.forEach(n=>{ n=n.trim().toLowerCase(); if(n && !LIST.some(i=>i.name===n)) LIST.push({name:n,done:false,brand:BRANDS[n]?0:-1}); }); saveList(); }
     function renderList(){
       $('listItems').innerHTML = LIST.length ? LIST.map((i,x)=>{ const opts=BRANDS[i.name];
-        return `<div class="li ${i.done?'done':''}"><input type="checkbox" data-t="${x}" ${i.done?'checked':''} aria-label="Have ${esc(i.name)}"><div style="flex:1;min-width:0"><div class="nm">${esc(i.name)}</div>${opts?`<div class="brand-pick">Brand: <select data-b="${x}"><option value="-1">Any brand</option>${opts.map((o,k)=>`<option value="${k}" ${i.brand==k?'selected':''}>${esc(o.b)}${o.sponsored?' (Sponsored)':''}</option>`).join('')}</select>${opts[i.brand]&&opts[i.brand].sponsored?'<span class="spons">Sponsored</span>':''}</div>`:''}</div><button type="button" class="x" data-r="${x}" aria-label="Remove">✕</button></div>`; }).join('')
+        return `<div class="li ${i.done?'done':''}"><input type="checkbox" data-t="${x}" ${i.done?'checked':''} aria-label="Have ${esc(i.name)}"><div style="flex:1;min-width:0"><div class="nm">${esc(i.name)}${i.qty?` <small style="color:var(--lime);font-weight:600">· ${esc(i.qty)}</small>`:''}${i.why?`<div style="font-size:.74rem;color:var(--green);font-weight:600">🎯 ${esc(i.why)}</div>`:''}</div>${opts?`<div class="brand-pick">Brand: <select data-b="${x}"><option value="-1">Any brand</option>${opts.map((o,k)=>`<option value="${k}" ${i.brand==k?'selected':''}>${esc(o.b)}${o.sponsored?' (Sponsored)':''}</option>`).join('')}</select>${opts[i.brand]&&opts[i.brand].sponsored?'<span class="spons">Sponsored</span>':''}</div>`:''}</div><button type="button" class="x" data-r="${x}" aria-label="Remove">✕</button></div>`; }).join('')
         : '<div class="empty" style="margin-top:10px">Your list is empty. Tap “Add missing to list” on a recipe.</div>';
     }
     $('listItems').addEventListener('change',e=>{ const t=e.target; if(t.dataset.t!==undefined){ LIST[t.dataset.t].done=t.checked; } if(t.dataset.b!==undefined){ LIST[t.dataset.b].brand=+t.value; } saveList(); renderList(); });
@@ -669,6 +685,63 @@
     });
     document.addEventListener('click',e=>{ if(e.target.id==='openPrep'){ $('goalModal').classList.remove('open'); renderPrep(); $('prepModal').classList.add('open'); burst(e.target,'good',10); } });
     document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('prepModal').classList.remove('open'); });
+
+    // ---- Goal-gap foods: suggest items to buy to hit dietary goals ----
+    // per serving: cal, protein, carbs, fat, satfat, fiber, sugar, sodium; unit = what "1 serving" means; diets tags
+    const GAPFOODS=[
+      ['greek yogurt','cup (170g)',{cal:100,protein:17,carbs:6,fat:0,satfat:0,fiber:0,sugar:5,sodium:60},'veg gf lowcarb keto'],
+      ['cottage cheese','½ cup',{cal:90,protein:12,carbs:5,fat:2.5,satfat:1.5,fiber:0,sugar:4,sodium:350},'veg gf lowcarb keto'],
+      ['protein shake','bottle',{cal:160,protein:30,carbs:5,fat:3,satfat:1,fiber:1,sugar:1,sodium:230},'veg gf lowcarb keto'],
+      ['protein bar','bar',{cal:200,protein:20,carbs:22,fat:8,satfat:3,fiber:10,sugar:1,sodium:200},'veg'],
+      ['chicken breast','6 oz',{cal:280,protein:52,carbs:0,fat:6,satfat:1.5,fiber:0,sugar:0,sodium:120},'gf df lowcarb keto'],
+      ['canned tuna','can',{cal:120,protein:26,carbs:0,fat:1,satfat:0,fiber:0,sugar:0,sodium:320},'gf df lowcarb keto'],
+      ['eggs','2 eggs',{cal:140,protein:12,carbs:1,fat:10,satfat:3,fiber:0,sugar:0,sodium:140},'veg gf df lowcarb keto'],
+      ['tofu','4 oz',{cal:100,protein:11,carbs:2,fat:6,satfat:1,fiber:1,sugar:0,sodium:10},'veg vegan gf df lowcarb keto'],
+      ['edamame','1 cup',{cal:190,protein:17,carbs:14,fat:8,satfat:1,fiber:8,sugar:3,sodium:10},'veg vegan gf df lowcarb'],
+      ['lentils','1 cup cooked',{cal:230,protein:18,carbs:40,fat:1,satfat:0,fiber:16,sugar:4,sodium:5},'veg vegan gf df'],
+      ['turkey jerky','1 oz',{cal:80,protein:12,carbs:5,fat:1,satfat:0,fiber:0,sugar:4,sodium:500},'gf df lowcarb'],
+      ['string cheese','stick',{cal:80,protein:7,carbs:1,fat:6,satfat:3.5,fiber:0,sugar:0,sodium:200},'veg gf lowcarb keto'],
+      ['almonds','1 oz',{cal:165,protein:6,carbs:6,fat:14,satfat:1,fiber:3.5,sugar:1,sodium:0},'veg vegan gf df lowcarb keto'],
+      ['oatmeal','½ cup dry',{cal:150,protein:5,carbs:27,fat:3,satfat:0.5,fiber:4,sugar:1,sodium:0},'veg vegan df'],
+      ['chia seeds','2 tbsp',{cal:120,protein:4,carbs:10,fat:8,satfat:1,fiber:10,sugar:0,sodium:5},'veg vegan gf df lowcarb keto'],
+      ['hummus','¼ cup',{cal:140,protein:5,carbs:12,fat:9,satfat:1,fiber:4,sugar:0,sodium:280},'veg vegan gf df'],
+      ['berries','1 cup',{cal:70,protein:1,carbs:17,fat:0,satfat:0,fiber:5,sugar:9,sodium:0},'veg vegan gf df'],
+      ['apple','1 medium',{cal:95,protein:0,carbs:25,fat:0,satfat:0,fiber:4.5,sugar:19,sodium:0},'veg vegan gf df'],
+      ['baby carrots','1 cup',{cal:50,protein:1,carbs:12,fat:0,satfat:0,fiber:4,sugar:6,sodium:100},'veg vegan gf df']
+    ];
+    // gaps: {key: amountShort} for min goals; limits: {key: remaining} for max goals
+    function gapSuggestions(short, room){
+      const keys=Object.keys(short).filter(k=>short[k]>0); if(!keys.length) return [];
+      const ok=GAPFOODS.filter(([,, ,tags])=>G.diets.every(d=>tags.split(' ').includes(DIETS[d][0])));
+      const out=[];
+      keys.forEach(k=>{ const [ ,l,u]=NK.find(x=>x[0]===k);
+        const ranked=ok.filter(f=>f[2][k]>0).map(f=>{ const n=Math.ceil(short[k]/f[2][k]);
+            let pen=0; Object.entries(room).forEach(([m,left])=>{ const over=f[2][m]*n-left; if(over>0) pen+=over/(Math.abs(left)+1); });
+            const eff=f[2][k]/(f[2].cal||1); return {f,n,score:eff-pen*0.5}; })
+          .filter(x=>x.n<=40).sort((a,b)=>b.score-a.score).slice(0,3);
+        out.push({k,l,u,short:Math.round(short[k]),items:ranked}); });
+      return out; }
+    function gapHTML(g){ if(!g.length) return '';
+      return g.map(x=>`<div class="impact"><b>🛒 To close your ${x.short}${x.u} ${x.l.toLowerCase()} gap, buy:</b>
+        <ul class="ings" style="margin:8px 0 0">${x.items.map(({f,n})=>{ const [nm,unit,nut]=f; const br=(BRANDS[nm]||[])[0];
+          return `<li><span>${nm}${br?` <small style="color:var(--muted)">· ${esc(br.b)}${br.sponsored?' <span class="spons">Sponsored</span>':''}</small>`:''}<br><small style="color:var(--muted)">${n} × ${unit} = +${Math.round(nut[x.k]*n)}${x.u} ${x.l.toLowerCase()}, ${Math.round(nut.cal*n)} cal</small></span>
+          <button type="button" class="add-list" style="margin:0;align-self:center" data-gap="${nm}" data-qty="${n} × ${unit}" data-why="+${Math.round(nut[x.k]*n)}${x.u} ${x.l.toLowerCase()}">+ Add</button></li>`; }).join('')}</ul></div>`).join(''); }
+    document.addEventListener('click',e=>{ const b=e.target.closest('[data-gap]'); if(!b) return; addGoalItem(b.dataset.gap,b.dataset.qty,b.dataset.why); burst(b,'add'); bump($('listBtn')); toast(`Added ${b.dataset.gap} (${b.dataset.qty}) 🛒`); b.textContent='✓ Added'; });
+    // hook into meal prep plan
+    const _renderPrep=renderPrep;
+    renderPrep=function(){ _renderPrep(); if(!PLAN) return; const short={}, room={};
+      activeGoals().forEach(([k])=>{ if(isMax(k)) room[k]=PLAN.T[k]-PLAN.got[k]; else short[k]=PLAN.T[k]-PLAN.got[k]; });
+      const h=gapHTML(gapSuggestions(short,room)); const anchor=$('prepBody').querySelector('details'); if(h&&anchor) anchor.insertAdjacentHTML('beforebegin','<h3 style="margin:14px 0 8px">Buy these to hit your goals</h3>'+h);
+      // also carry quantities into the list
+      const pl=$('prepList'); if(pl) pl.id='prepListQ'; };
+    document.addEventListener('click',e=>{ if(e.target.id!=='prepListQ'||!PLAN) return;
+      combinedIngredients(PLAN).forEach(([n,q,u])=>addGoalItem(n,fmtQ(q,u,1),'meal prep'));
+      burst(e.target,'add'); bump($('listBtn')); toast('Meal prep ingredients added with amounts 🛒'); });
+    // hook into goals screen (remaining for the current period)
+    const _renderGoals=renderGoals;
+    renderGoals=function(){ _renderGoals(); const t=totals(), short={}, room={};
+      activeGoals().forEach(([k])=>{ const g=+G.targets[k]; if(isMax(k)) room[k]=g-t[k]; else short[k]=g-t[k]; });
+      const h=gapHTML(gapSuggestions(short,room)); const btn=$('openPrep'); if(h&&btn) btn.insertAdjacentHTML('beforebegin','<h3 style="margin:16px 0 8px">Shop to reach your goals '+periodLabel()+'</h3>'+h); };
   </script>
 </body>
 </html>
