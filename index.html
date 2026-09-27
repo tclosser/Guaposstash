@@ -32,6 +32,18 @@
     .tag { display:inline-block; padding:5px 8px; border-radius:999px; background:#e6f1eb; color:var(--green); font-size:.76rem; font-weight:700; margin-top:auto; }
     .empty { grid-column:1/-1; padding:28px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:18px; }
     footer { color:var(--muted); text-align:center; font-size:.88rem; padding:0 22px 30px; }
+    .cam-btn { background:var(--green); } .cam-btn:hover { background:#255a49; }
+    #camPanel { display:none; margin-top:16px; max-width:570px; }
+    #camPanel.open { display:block; }
+    .cam-wrap { position:relative; border-radius:16px; overflow:hidden; background:#000; aspect-ratio:4/3; }
+    .cam-wrap video, .cam-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+    .cam-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .cam-actions button { flex:1; padding:11px 12px; }
+    .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); } .ghost:hover { background:#f6ece3; }
+    #camStatus { color:var(--muted); font-size:.9rem; margin:10px 0 6px; min-height:1.2em; }
+    #chips { display:flex; flex-wrap:wrap; gap:7px; }
+    .chip { padding:7px 11px; border-radius:999px; background:#fbe5da; color:var(--accent-dark); font-weight:700; font-size:.85rem; cursor:pointer; border:1px solid #f3c9b5; }
+    .chip.off { background:#fff; color:var(--muted); text-decoration:line-through; border-color:var(--line); }
     @media (max-width:720px) { header { padding-top:19px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { min-height:130px; } .hero-art::after { font-size:76px; } #results { grid-template-columns:1fr; } form { flex-direction:column; } }
   </style>
 </head>
@@ -48,7 +60,19 @@
         <form id="ingredientForm">
           <input id="ingredients" type="text" autocomplete="off" placeholder="Try: chicken, rice, broccoli" aria-label="Ingredients" />
           <button type="submit">Find recipes</button>
+          <button type="button" class="cam-btn" id="openCam">📷 Scan</button>
         </form>
+        <div id="camPanel">
+          <div class="cam-wrap"><video id="video" playsinline muted autoplay></video><img id="shot" alt="Captured photo" hidden></div>
+          <div class="cam-actions">
+            <button type="button" id="snap">Identify ingredients</button>
+            <button type="button" class="ghost" id="upload">Upload photo</button>
+            <button type="button" class="ghost" id="closeCam">Close</button>
+            <input type="file" id="fileIn" accept="image/*" capture="environment" hidden>
+          </div>
+          <div id="camStatus"></div>
+          <div id="chips"></div>
+        </div>
       </div>
       <div class="hero-art" aria-hidden="true"></div>
     </section>
@@ -63,7 +87,11 @@
       {name:'Loaded Veggie Omelet', ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', emoji:'🍳', tag:'15 minutes'},
       {name:'Crispy Fried Rice', ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', emoji:'🍚', tag:'20 minutes'},
       {name:'Black Bean Tacos', ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', emoji:'🌮', tag:'15 minutes'},
-      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', emoji:'🥖', tag:'10 minutes'}
+      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', emoji:'🥖', tag:'10 minutes'},
+      {name:'Veggie Stir-Fry', ingredients:['broccoli','carrot','pepper','mushroom','zucchini','cabbage','rice','garlic'], text:'Toss whatever produce you scanned into a hot pan with soy and garlic.', emoji:'🥦', tag:'20 minutes'},
+      {name:'Fresh Fruit Salad', ingredients:['apple','banana','orange','strawberry','pineapple','lemon'], text:'Chop, squeeze a little lemon, and chill.', emoji:'🍓', tag:'10 minutes'},
+      {name:'Loaded Baked Potato', ingredients:['potato','cheese','butter','broccoli','cream'], text:'Crispy skin, fluffy inside, piled with toppings.', emoji:'🥔', tag:'45 minutes'},
+      {name:'Avocado Toast', ingredients:['avocado','bread','eggs','lemon','tomato'], text:'Smashed avocado on toast, egg optional.', emoji:'🥑', tag:'10 minutes'}
     ];
     const results = document.getElementById('results');
     const title = document.getElementById('resultTitle');
@@ -81,6 +109,64 @@
     document.getElementById('ingredientForm').addEventListener('submit', e => { e.preventDefault(); findRecipes(input.value); });
     document.getElementById('surprise').addEventListener('click', () => { const choices=['chicken, rice','eggs, cheese','pasta, garlic','beans, tortilla']; input.value=choices[Math.floor(Math.random()*choices.length)]; findRecipes(input.value); });
     render(recipes);
+    // ---- Camera ingredient scanner (runs fully on-device with TensorFlow.js) ----
+    const MAP = {
+      'granny smith':'apple','apple':'apple','banana':'banana','orange':'orange','lemon':'lemon','broccoli':'broccoli','cauliflower':'cauliflower',
+      'head cabbage':'cabbage','bell pepper':'pepper','cucumber':'cucumber','zucchini':'zucchini','mushroom':'mushroom','agaric':'mushroom',
+      'corn':'corn','ear':'corn','carrot':'carrot','strawberry':'strawberry','pineapple':'pineapple','pomegranate':'pomegranate','fig':'fig',
+      'artichoke':'artichoke','spaghetti squash':'squash','butternut squash':'squash','acorn squash':'squash','french loaf':'bread','bagel':'bread',
+      'pretzel':'bread','sandwich':'bread','hotdog':'bread','cheeseburger':'beef','meat loaf':'beef','carbonara':'pasta','burrito':'tortilla',
+      'guacamole':'avocado','pizza':'cheese','potpie':'chicken','hen':'chicken','cock':'chicken','egg':'eggs','dough':'bread','wine bottle':'wine',
+      'mashed potato':'potato','trifle':'cream','ice cream':'cream','consomme':'broth','hot pot':'broth','milk can':'milk','cake':'cake','donut':'bread'
+    };
+    const $ = id => document.getElementById(id);
+    let stream=null, mobilenetModel=null, cocoModel=null, found=new Map();
+    function loadScript(src){ return new Promise((ok,bad)=>{ const t=document.createElement('script'); t.src=src; t.onload=ok; t.onerror=bad; document.head.appendChild(t); }); }
+    async function loadModels(){
+      if (mobilenetModel) return;
+      $('camStatus').textContent='Loading ingredient recognizer (first time only)…';
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
+      await Promise.all([loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js'),
+                         loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js')]);
+      [mobilenetModel, cocoModel] = await Promise.all([mobilenet.load({version:2,alpha:1}), cocoSsd.load()]);
+    }
+    async function openCam(){
+      $('camPanel').classList.add('open'); $('shot').hidden=true; $('video').hidden=false;
+      loadModels().then(()=>{ if(!$('camStatus').dataset.busy) $('camStatus').textContent='Point at your ingredients and tap Identify.'; }).catch(()=>$('camStatus').textContent='Could not load the recognizer. Check your connection.');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        $('video').srcObject=stream;
+      } catch(e) { $('camStatus').textContent='Camera unavailable — use Upload photo instead.'; $('video').hidden=true; }
+    }
+    function closeCam(){ if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; $('camPanel').classList.remove('open'); }
+    function toIngredient(label){ label=label.toLowerCase(); for (const part of label.split(',').map(x=>x.trim())) { if (MAP[part]) return MAP[part]; } for (const k in MAP) if (label.includes(k)) return MAP[k]; return null; }
+    async function identify(source){
+      $('camStatus').dataset.busy='1'; $('camStatus').textContent='Identifying…';
+      try {
+        await loadModels();
+        const [cls, det] = await Promise.all([mobilenetModel.classify(source,10), cocoModel.detect(source,20,0.4)]);
+        const labels = [...cls.filter(c=>c.probability>0.05).map(c=>c.className), ...det.map(d=>d.class)];
+        let added=0;
+        labels.forEach(l=>{ const ing=toIngredient(l); if(ing && !found.has(ing)){ found.set(ing,true); added++; } });
+        renderChips();
+        $('camStatus').textContent = added ? `Found ${added} new ingredient${added>1?'s':''}. Tap a chip to remove it, scan more, or search.` :
+          'No ingredients recognized. Try better light, one item at a time, or type them in.';
+      } catch(e){ $('camStatus').textContent='Something went wrong identifying the photo.'; }
+      delete $('camStatus').dataset.busy;
+    }
+    function renderChips(){
+      $('chips').innerHTML=[...found].map(([k,on])=>`<span class="chip ${on?'':'off'}" data-k="${k}">${k}</span>`).join('');
+      const active=[...found].filter(([,on])=>on).map(([k])=>k);
+      const typed=input.value.split(',').map(x=>x.trim()).filter(Boolean).filter(x=>!found.has(x));
+      input.value=[...typed,...active].join(', ');
+      if (active.length) findRecipes(input.value);
+    }
+    $('chips').addEventListener('click',e=>{ const k=e.target.dataset.k; if(k){ found.set(k,!found.get(k)); renderChips(); } });
+    $('openCam').addEventListener('click',openCam);
+    $('closeCam').addEventListener('click',closeCam);
+    $('snap').addEventListener('click',()=>{ if(stream && !$('video').hidden) identify($('video')); else $('fileIn').click(); });
+    $('upload').addEventListener('click',()=>$('fileIn').click());
+    $('fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; const img=$('shot'); img.onload=()=>{ $('video').hidden=true; img.hidden=false; identify(img); }; img.src=URL.createObjectURL(f); e.target.value=''; });
   </script>
 </body>
 </html>
