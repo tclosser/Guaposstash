@@ -788,7 +788,7 @@
     const terms=()=>input.value.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
     const ADJ=['shredded','large','cooked','crushed','cherry','baby','fresh','sourdough','uncooked','chopped','diced','minced','frozen','canned','sliced'];
     const sing=w=>w.replace(/(oes|ies|es|s)$/,m=>m==='ies'?'y':m==='oes'?'o':m==='es'&&!/(ch|sh|x|ss)es$/.test(w)?'e':'');
-    function nounOf(word){ const ws=word.toLowerCase().split(/\s+/).filter(w=>!ADJ.includes(w)); if(['juice','sauce','florets','chunks','powder'].includes(ws[ws.length-1])&&ws.length>1) return [ws.join(' '),ws[0]]; return [ws.join(' '),ws[ws.length-1]]; }
+    function nounOf(word){ const ws=word.toLowerCase().split(/\s+/).filter(w=>!ADJ.includes(w)); if(['juice','sauce','florets','chunks','powder','thighs','thigh','breast','breasts'].includes(ws[ws.length-1])&&ws.length>1) return [ws.join(' '),ws[0]]; return [ws.join(' '),ws[ws.length-1]]; }
     const hasTerm=(word,T)=>{ const [full,head]=nounOf(word); return T.some(t=>{ t=t.trim(); return t===full||sing(t)===sing(head)||sing(t)===sing(full)||t.includes(full); }); };
     const isStaple=w=>STAPLES.includes(w.trim());
     function subFor(word,T){ const [full,head]=nounOf(word); const key=Object.keys(SUBS).find(k=>k===full||sing(k)===sing(head)||full.includes(k)); if(!key) return null; return SUBS[key].find(x=>hasTerm(x,T))||null; }
