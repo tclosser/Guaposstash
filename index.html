@@ -772,7 +772,7 @@
       broccoli:['spinach','zucchini','green beans','cauliflower','peas'],butter:['oil','olive oil','margarine'],bread:['tortilla','bagel','pita','english muffin'],cream:['sour cream','greek yogurt','milk'],
       avocado:['hummus','guacamole'],tomato:['salsa','tomato sauce','cherry tomatoes'],spinach:['kale','arugula','lettuce'],pepper:['onion','zucchini'],soy:['salt','teriyaki'],
       lime:['lemon','vinegar'],lemon:['lime','vinegar'],broth:['water','bouillon'],mushroom:['zucchini','eggplant'],carrot:['celery','peas'],zucchini:['squash','broccoli'],potato:['sweet potato'],
-      apple:['pear'],banana:['mango'],strawberry:['berries','blueberries','grapes'],pineapple:['mango','peach'],orange:['clementine','grapefruit']};
+      apple:['pear'],banana:['mango'],strawberry:['berries','blueberries','grapes'],pineapple:['mango','peach'],orange:['clementine','grapefruit'],cheddar:['cheese','shredded cheese'],parmesan:['cheese'],'sour cream':['greek yogurt','cream']};
     const STEPS={
       'Chicken & Rice Skillet':['Season the chicken with salt and pepper.','Heat the oil in a large skillet over medium-high. Sear chicken 4 minutes per side until golden; set aside.','Add the onion and cook 3 minutes until soft.','Stir in the rice for 1 minute, then pour in the broth and bring to a boil.','Nestle the chicken on top, cover, and simmer on low for 18 minutes.','Scatter the broccoli over, cover again, and cook 5 minutes more.','Check chicken reaches 165°F. Rest 5 minutes, fluff the rice, and serve.'],
       'Pantry Pasta':['Bring a big pot of salted water to a boil.','Cook the pasta 1 minute less than the box says. Save ½ cup pasta water, then drain.','Meanwhile warm the olive oil over medium; cook the onion 4 minutes.','Add the garlic for 30 seconds, then the crushed tomatoes. Simmer 10 minutes.','Toss the pasta into the sauce with a splash of pasta water.','Top with parmesan and serve.'],
@@ -786,14 +786,17 @@
       'Avocado Toast':['Toast the bread until golden.','Mash the avocado with lemon juice, salt, and pepper.','Fry the egg in a lightly oiled pan 3 minutes for a runny yolk.','Spread avocado on the toast, top with the egg and halved tomatoes.','Add chili flakes if you like and serve.']
     };
     const terms=()=>input.value.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
-    const hasTerm=(word,T)=>T.some(t=>word.includes(t)||t.includes(word)|| (t.endsWith('s')&&word.includes(t.slice(0,-1))));
-    const isStaple=w=>STAPLES.some(x=>w===x||w.endsWith(' '+x));
-    function subFor(word,T){ const key=Object.keys(SUBS).find(k=>word.includes(k)); if(!key) return null; return SUBS[key].find(x=>hasTerm(x,T))||null; }
+    const ADJ=['shredded','large','cooked','crushed','cherry','baby','fresh','sourdough','uncooked','chopped','diced','minced','frozen','canned','sliced'];
+    const sing=w=>w.replace(/(oes|ies|es|s)$/,m=>m==='ies'?'y':m==='oes'?'o':m==='es'&&!/(ch|sh|x|ss)es$/.test(w)?'e':'');
+    function nounOf(word){ const ws=word.toLowerCase().split(/\s+/).filter(w=>!ADJ.includes(w)); if(['juice','sauce','florets','chunks','powder'].includes(ws[ws.length-1])&&ws.length>1) return [ws.join(' '),ws[0]]; return [ws.join(' '),ws[ws.length-1]]; }
+    const hasTerm=(word,T)=>{ const [full,head]=nounOf(word); return T.some(t=>{ t=t.trim(); return t===full||sing(t)===sing(head)||sing(t)===sing(full)||t.includes(full); }); };
+    const isStaple=w=>STAPLES.includes(w.trim());
+    function subFor(word,T){ const [full,head]=nounOf(word); const key=Object.keys(SUBS).find(k=>k===full||sing(k)===sing(head)||full.includes(k)); if(!key) return null; return SUBS[key].find(x=>hasTerm(x,T))||null; }
     findRecipes=function(query){
       const T=terms(); document.querySelectorAll('.flow span').forEach((f,i)=>f.classList.toggle('on',i===(T.length?1:0)));
       if(!T.length){ title.textContent='Popular ideas'; render(recipes.map(r=>({...r,missing:null,have:null}))); return; }
       const scored=recipes.map(r=>{ const need=(r.qty?r.qty.map(q=>q[0].replace(/\(.*?\)/,'').trim()):r.ingredients).filter(i=>!isStaple(i));
-        const missing=need.filter(i=>!hasTerm(i,T)&&!r.ingredients.some(k=>i.includes(k)&&hasTerm(k,T))&&!subFor(i,T)); const have=Math.round((need.length-missing.length)/need.length*100);
+        const missing=need.filter(i=>!hasTerm(i,T)&&!subFor(i,T)); const have=Math.round((need.length-missing.length)/need.length*100);
         return {...r,missing,have}; }).filter(r=>r.have>0).sort((a,b)=>a.missing.length-b.missing.length||b.have-a.have);
       const now=scored.filter(r=>!r.missing.length).length;
       title.textContent= now? `You can make ${now} dish${now>1?'es':''} right now` : `Closest matches for: ${T.join(', ')}`;
@@ -808,7 +811,7 @@
     renderDetail=function(){ _renderDetail(); const T=terms(); if(!cur) return;
       const lis=$('detBody').querySelectorAll('.ings li'); const missingNames=[];
       cur.qty.forEach(([nm],i)=>{ const li=lis[i]; if(!li||!T.length) return; const base=nm.replace(/\(.*?\)/,'').trim();
-        if(isStaple(base)||hasTerm(base,T)||cur.ingredients.some(k=>base.includes(k)&&hasTerm(k,T))) li.classList.add('have');
+        if(isStaple(base)||hasTerm(base,T)) li.classList.add('have');
         else { const sub=subFor(base,T); if(sub){ li.classList.add('have'); li.firstElementChild.insertAdjacentHTML('beforeend',`<span class="sub">↻ Use your ${esc(sub)} instead</span>`); }
           else { li.classList.add('need'); missingNames.push(base); const alt=(SUBS[Object.keys(SUBS).find(k=>base.includes(k))]||[]).slice(0,2); if(alt.length) li.firstElementChild.insertAdjacentHTML('beforeend',`<span class="sub" style="color:var(--muted)">or swap: ${alt.join(', ')}</span>`); } } });
       const h3=$('detBody').querySelector('h3');
