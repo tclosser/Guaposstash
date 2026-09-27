@@ -78,8 +78,8 @@
     @media (max-width:520px) {
       header { flex-wrap:wrap; padding:16px 14px 4px; gap:10px; }
       .brand { font-size:1.2rem; }
-      .hdr-btns { width:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
-      .hdr-btns button { padding:11px 6px; font-size:.88rem; white-space:nowrap; }
+      .hdr-btns { width:100%; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+      .hdr-btns button { padding:11px 4px; font-size:.8rem; white-space:nowrap; }
       main { padding:18px 14px 60px; }
       .stores { gap:6px; } .stores a { padding:12px 6px; font-size:.92rem; }
       .oops-sheet .cam-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
@@ -165,12 +165,38 @@
     .photo::after { content:""; position:absolute; inset:auto 0 0 0; height:45%; background:linear-gradient(transparent,rgba(20,11,46,.75)); }
     .photo .emoji { position:absolute; left:14px; bottom:10px; z-index:1; font-size:2rem; margin:0; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
     .recipe:hover .photo img { transform:scale(1.07); }
+    .goal-btn { background:linear-gradient(135deg,#12b3d6,var(--violet))!important; }
+    .recipe { cursor:pointer; }
+    .nut-badges { display:flex; gap:6px; flex-wrap:wrap; margin:0 20px 8px; }
+    .nb { font-size:.74rem; font-weight:700; padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.08); color:#fff; }
+    .nb.p { background:rgba(30,227,161,.16); color:var(--green); }
+    .modal { position:fixed; inset:0; background:rgba(8,4,24,.65); backdrop-filter:blur(6px); display:none; align-items:flex-end; justify-content:center; z-index:60; }
+    .modal.open { display:flex; } @media (min-width:721px){ .modal { align-items:center; } }
+    .det-photo { width:calc(100% + 44px); margin:-22px -22px 14px; aspect-ratio:16/9; object-fit:cover; display:block; border-radius:22px 22px 0 0; }
+    .stepper { display:flex; align-items:center; gap:10px; margin:10px 0 14px; }
+    .stepper button { width:44px; height:44px; padding:0; font-size:1.3rem; }
+    .stepper .num { font-family:"Bricolage Grotesque"; font-size:1.8rem; font-weight:800; min-width:40px; text-align:center; }
+    .ings { list-style:none; padding:0; margin:0 0 14px; } .ings li { display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+    .ings b { color:var(--lime); white-space:nowrap; }
+    .facts { border:2px solid rgba(255,255,255,.8); border-radius:14px; padding:12px 14px; margin-bottom:14px; }
+    .facts h3 { margin:0; font-size:1.3rem; } .facts .row { display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--line); }
+    .facts .big { font-size:1.4rem; font-weight:800; border-top:6px solid rgba(255,255,255,.8); padding-top:6px; margin-top:6px; }
+    .seg { display:flex; background:rgba(255,255,255,.08); border-radius:12px; padding:3px; gap:3px; margin-bottom:10px; }
+    .seg button { flex:1; background:none!important; box-shadow:none!important; padding:9px 4px; font-size:.85rem; color:var(--muted); }
+    .seg button.on { background:rgba(255,255,255,.14)!important; color:#fff; }
+    .bar { height:12px; background:rgba(255,255,255,.1); border-radius:999px; overflow:hidden; margin:5px 0 3px; }
+    .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--lime)); border-radius:999px; transition:width .6s cubic-bezier(.3,1.3,.5,1); }
+    .bar i.over { background:linear-gradient(90deg,var(--sun),var(--accent)); }
+    .goal-row { margin-bottom:12px; } .goal-row small { color:var(--muted); }
+    .gin { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .gin label { font-size:.8rem; color:var(--muted); } .gin input { width:100%; margin-top:3px; padding:10px; }
+    .impact { background:rgba(30,227,161,.1); border:1px solid rgba(30,227,161,.35); border-radius:14px; padding:12px; margin-bottom:12px; font-size:.92rem; line-height:1.45; }
+    .log-item { display:flex; justify-content:space-between; gap:8px; font-size:.86rem; padding:6px 0; border-bottom:1px solid var(--line); color:var(--muted); }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">What’s <span>Cooking?</span></div>
-    <div class="hdr-btns"><button type="button" class="oops-btn" id="oopsBtn">😬 <span class="lbl">Oops!</span></button><button type="button" class="list-btn" id="listBtn">🛒 <span class="lbl">List</span><span class="count" id="listCount">0</span></button><button type="button" id="surprise">Surprise me</button></div>
+    <div class="hdr-btns"><button type="button" class="oops-btn" id="oopsBtn">😬 <span class="lbl">Oops!</span></button><button type="button" class="list-btn" id="listBtn">🛒 <span class="lbl">List</span><span class="count" id="listCount">0</span></button><button type="button" class="goal-btn" id="goalBtn">🎯 <span class="lbl">Goals</span></button><button type="button" id="surprise">🎲 Surprise</button></div>
   </header>
   <main>
     <section class="hero">
@@ -234,26 +260,28 @@
       <p style="color:var(--muted);font-size:.75rem;margin:12px 0 0" id="discl">Some brand suggestions are sponsored and marked. We may earn a commission from store links.</p>
     </div>
   </div>
+  <div class="modal" id="detModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="detBody"></div></div>
+  <div class="modal" id="goalModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="goalBody"></div></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
     const recipes = [
-      {name:'Chicken & Rice Skillet', ingredients:['chicken','rice','broccoli','onion'], text:'One-pan comfort food with whatever vegetables you have.', img:'img/chicken_rice.webp', emoji:'🍗', tag:'25 minutes'},
-      {name:'Pantry Pasta', ingredients:['pasta','tomato','garlic','onion','cheese'], text:'A fast, flexible pasta dinner built around pantry basics.', img:'img/pantry_pasta.webp', emoji:'🍝', tag:'20 minutes'},
-      {name:'Loaded Veggie Omelet', ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', img:'img/omelet.webp', emoji:'🍳', tag:'15 minutes'},
-      {name:'Crispy Fried Rice', ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', img:'img/fried_rice.webp', emoji:'🍚', tag:'20 minutes'},
-      {name:'Black Bean Tacos', ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', img:'img/tacos.webp', emoji:'🌮', tag:'15 minutes'},
-      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', img:'img/garlic_toast.webp', emoji:'🥖', tag:'10 minutes'},
-      {name:'Veggie Stir-Fry', ingredients:['broccoli','carrot','pepper','mushroom','zucchini','cabbage','rice','garlic'], text:'Toss whatever produce you scanned into a hot pan with soy and garlic.', img:'img/stir_fry.webp', emoji:'🥦', tag:'20 minutes'},
-      {name:'Fresh Fruit Salad', ingredients:['apple','banana','orange','strawberry','pineapple','lemon'], text:'Chop, squeeze a little lemon, and chill.', img:'img/fruit_salad.webp', emoji:'🍓', tag:'10 minutes'},
-      {name:'Loaded Baked Potato', ingredients:['potato','cheese','butter','broccoli','cream'], text:'Crispy skin, fluffy inside, piled with toppings.', img:'img/baked_potato.webp', emoji:'🥔', tag:'45 minutes'},
-      {name:'Avocado Toast', ingredients:['avocado','bread','eggs','lemon','tomato'], text:'Smashed avocado on toast, egg optional.', img:'img/avocado_toast.webp', emoji:'🥑', tag:'10 minutes'}
+      {name:'Chicken & Rice Skillet', diets:'gf df', qty:[['chicken thighs',6,'oz'],['rice (uncooked)',0.5,'cup'],['broccoli florets',1,'cup'],['onion',0.25,''],['olive oil',1,'tbsp'],['chicken broth',0.75,'cup']], nut:{cal:560,protein:42,carbs:50,fat:18,fiber:4,sugar:4,sodium:620,satfat:4}, ingredients:['chicken','rice','broccoli','onion'], text:'One-pan comfort food with whatever vegetables you have.', img:'img/chicken_rice.webp', emoji:'🍗', tag:'25 minutes'},
+      {name:'Pantry Pasta', diets:'veg', qty:[['pasta',3,'oz'],['crushed tomatoes',0.75,'cup'],['garlic',1,'clove'],['onion',0.25,''],['parmesan',2,'tbsp'],['olive oil',1,'tbsp']], nut:{cal:520,protein:18,carbs:78,fat:15,fiber:6,sugar:10,sodium:540,satfat:4}, ingredients:['pasta','tomato','garlic','onion','cheese'], text:'A fast, flexible pasta dinner built around pantry basics.', img:'img/pantry_pasta.webp', emoji:'🍝', tag:'20 minutes'},
+      {name:'Loaded Veggie Omelet', diets:'veg gf lowcarb keto', qty:[['eggs',3,''],['shredded cheese',0.25,'cup'],['spinach',1,'cup'],['onion',0.125,''],['bell pepper',0.25,''],['butter',1,'tsp']], nut:{cal:390,protein:26,carbs:7,fat:28,fiber:2,sugar:4,sodium:480,satfat:13}, ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', img:'img/omelet.webp', emoji:'🍳', tag:'15 minutes'},
+      {name:'Crispy Fried Rice', diets:'df', qty:[['cooked rice',1,'cup'],['eggs',1,''],['chicken',4,'oz'],['broccoli',0.5,'cup'],['onion',0.25,''],['soy sauce',1,'tbsp'],['oil',1,'tbsp']], nut:{cal:540,protein:38,carbs:55,fat:17,fiber:3,sugar:3,sodium:980,satfat:3}, ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', img:'img/fried_rice.webp', emoji:'🍚', tag:'20 minutes'},
+      {name:'Black Bean Tacos', diets:'veg', qty:[['tortillas',3,''],['black beans',0.75,'cup'],['shredded cheese',0.25,'cup'],['tomato',0.5,''],['onion',0.125,''],['lime',0.25,'']], nut:{cal:480,protein:21,carbs:66,fat:15,fiber:14,sugar:5,sodium:690,satfat:7}, ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', img:'img/tacos.webp', emoji:'🌮', tag:'15 minutes'},
+      {name:'Garlic Butter Toast', diets:'veg', qty:[['bread',2,'slices'],['butter',1,'tbsp'],['garlic',1,'clove'],['shredded cheese',2,'tbsp']], nut:{cal:330,protein:11,carbs:30,fat:18,fiber:2,sugar:3,sodium:520,satfat:11}, ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', img:'img/garlic_toast.webp', emoji:'🥖', tag:'10 minutes'},
+      {name:'Veggie Stir-Fry', diets:'veg vegan df', qty:[['broccoli',1,'cup'],['carrot',0.5,''],['bell pepper',0.5,''],['mushrooms',0.5,'cup'],['zucchini',0.5,''],['cooked rice',0.75,'cup'],['garlic',1,'clove'],['soy sauce',1,'tbsp'],['oil',1,'tbsp']], nut:{cal:360,protein:10,carbs:55,fat:12,fiber:7,sugar:9,sodium:720,satfat:1.5}, ingredients:['broccoli','carrot','pepper','mushroom','zucchini','cabbage','rice','garlic'], text:'Toss whatever produce you scanned into a hot pan with soy and garlic.', img:'img/stir_fry.webp', emoji:'🥦', tag:'20 minutes'},
+      {name:'Fresh Fruit Salad', diets:'veg vegan gf df', qty:[['apple',0.5,''],['banana',0.5,''],['orange',0.5,''],['strawberries',0.5,'cup'],['pineapple chunks',0.5,'cup'],['lemon juice',1,'tsp']], nut:{cal:190,protein:2,carbs:48,fat:1,fiber:7,sugar:36,sodium:5,satfat:0}, ingredients:['apple','banana','orange','strawberry','pineapple','lemon'], text:'Chop, squeeze a little lemon, and chill.', img:'img/fruit_salad.webp', emoji:'🍓', tag:'10 minutes'},
+      {name:'Loaded Baked Potato', diets:'veg gf', qty:[['large potato',1,''],['shredded cheddar',0.25,'cup'],['butter',1,'tbsp'],['broccoli',0.5,'cup'],['sour cream',2,'tbsp']], nut:{cal:520,protein:17,carbs:68,fat:22,fiber:8,sugar:5,sodium:350,satfat:13}, ingredients:['potato','cheese','butter','broccoli','cream'], text:'Crispy skin, fluffy inside, piled with toppings.', img:'img/baked_potato.webp', emoji:'🥔', tag:'45 minutes'},
+      {name:'Avocado Toast', diets:'veg df', qty:[['sourdough bread',1,'slice'],['avocado',0.5,''],['eggs',1,''],['cherry tomatoes',0.25,'cup'],['lemon juice',1,'tsp']], nut:{cal:330,protein:12,carbs:26,fat:21,fiber:8,sugar:3,sodium:380,satfat:4}, ingredients:['avocado','bread','eggs','lemon','tomato'], text:'Smashed avocado on toast, egg optional.', img:'img/avocado_toast.webp', emoji:'🥑', tag:'10 minutes'}
     ];
     const results = document.getElementById('results');
     const title = document.getElementById('resultTitle');
     const input = document.getElementById('ingredients');
     function render(items) {
-      results.innerHTML = items.length ? items.map(r => `<article class="recipe">${r.img?`<div class="photo"><img src="${r.img}" alt="${r.name}" loading="lazy"><span class="emoji">${r.emoji}</span></div>`:`<div class="emoji">${r.emoji}</div>`}<h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span><button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
+      results.innerHTML = items.length ? items.map(r => `<article class="recipe" data-name="${r.name}">${r.img?`<div class="photo"><img src="${r.img}" alt="${r.name}" loading="lazy"><span class="emoji">${r.emoji}</span></div>`:`<div class="emoji">${r.emoji}</div>`}<h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span>${r.nut?`<div class="nut-badges" style="margin:8px 0 0"><span class="nb">🔥 ${r.nut.cal} cal</span><span class="nb p">💪 ${r.nut.protein}g protein</span></div>`:''}<button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
     }
     function findRecipes(query) {
       const terms = query.toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
@@ -479,6 +507,116 @@
     $('listItems').addEventListener('change',e=>{ if(e.target.checked){ burst(e.target,'good',6); } });
     // gentle nudge to try the scanner if idle
     setTimeout(()=>{ if(!input.value){ nudge($('openCam')); toast('Psst… try 📷 Scan your fridge'); } }, 6000);
+
+    // ---- Servings + nutrition + goals ----
+    const NK=[['cal','Calories',''],['protein','Protein','g'],['carbs','Carbs','g'],['fat','Fat','g'],['satfat','Saturated fat','g'],['fiber','Fiber','g'],['sugar','Sugar','g'],['sodium','Sodium','mg']];
+    const DEFMODE={cal:'max',protein:'min',carbs:'max',fat:'max',satfat:'max',fiber:'min',sugar:'max',sodium:'max'};
+    const DIETS={vegetarian:['veg','🥕 Vegetarian'],vegan:['vegan','🌱 Vegan'],glutenfree:['gf','🌾 Gluten-free'],dairyfree:['df','🥛 Dairy-free'],lowcarb:['lowcarb','🥩 Low-carb']};
+    const PRESETS={
+      balanced:['⚖️ Balanced',{cal:2000,protein:75,carbs:250,fat:70,satfat:20,fiber:28,sugar:50,sodium:2300}],
+      protein:['💪 High protein',{cal:2200,protein:150,fiber:30}],
+      weightloss:['🔥 Weight loss',{cal:1600,protein:110,fiber:30,sugar:36}],
+      keto:['🥑 Keto',{cal:1800,protein:100,carbs:30,satfat:''}],
+      lowcarb:['🥩 Low-carb',{cal:1900,protein:110,carbs:100,sugar:30}],
+      heart:['❤️ Heart healthy',{cal:2000,satfat:13,sodium:1500,fiber:30,sugar:36}],
+      diabetic:['🩸 Blood-sugar friendly',{carbs:180,sugar:25,fiber:30}],
+      lowsodium:['🧂 Low sodium',{sodium:1500}]
+    };
+    function frac(x){ const w=Math.floor(x+1e-9), r=x-w; const F=[[0,''],[.125,'⅛'],[.25,'¼'],[.333,'⅓'],[.5,'½'],[.667,'⅔'],[.75,'¾'],[1,'']];
+      let best=F[0]; F.forEach(f=>{ if(Math.abs(r-f[0])<Math.abs(r-best[0])) best=f; }); const W=best[0]===1?w+1:w; return (W?W:'')+(best[1]&&best[0]!==1?best[1]:'')||'0'; }
+    const fmtQ=(q,u,n)=>{ const v=frac(q*n); const pl=u&&q*n>1&&!/s$/.test(u)&&!['oz','tbsp','tsp'].includes(u)?u+'s':u; return v+(pl?' '+pl:''); };
+    let G=JSON.parse(localStorage.getItem('wc_goals')||'{"period":"day","days":3,"start":null,"targets":{"cal":2000,"protein":120}}');
+    G.modes=Object.assign({},DEFMODE,G.modes||{}); G.diets=G.diets||[]; G.targets=G.targets||{};
+    const isMax=k=>G.modes[k]==='max';
+    const mult=()=>G.period==='day'?1:G.period==='week'?7:G.days;
+    let LOG=JSON.parse(localStorage.getItem('wc_log')||'[]');
+    const saveG=()=>{ localStorage.setItem('wc_goals',JSON.stringify(G)); localStorage.setItem('wc_log',JSON.stringify(LOG)); };
+    function periodStart(){ const d=new Date(); d.setHours(0,0,0,0);
+      if(G.period==='week'){ const k=(d.getDay()+6)%7; d.setDate(d.getDate()-k); return d; }
+      if(G.period==='custom'){ return G.start? new Date(G.start) : d; } return d; }
+    const periodLabel=()=> G.period==='day'?'today':G.period==='week'?'this week':`these ${G.days} days`;
+    function totals(){ const st=periodStart().getTime(), end=G.period==='custom'? st+G.days*864e5 : Infinity; const t={}; NK.forEach(([k])=>t[k]=0);
+      LOG.filter(l=>l.t>=st&&l.t<end).forEach(l=>NK.forEach(([k])=>t[k]+=(l.nut[k]||0)*l.s)); return t; }
+    const activeGoals=()=>NK.filter(([k])=>+G.targets[k]>0);
+    let cur=null, servings=2;
+    function openDetail(name){ cur=recipes.find(r=>r.name===name); if(!cur||!cur.qty) return; servings=+localStorage.getItem('wc_serv')||2; renderDetail(); $('detModal').classList.add('open'); }
+    function renderDetail(){ const r=cur, n=servings, t=totals();
+      const imp=activeGoals().map(([k,l,u])=>{ const add=r.nut[k], goal=+G.targets[k], after=t[k]+add, left=Math.max(0,goal-after);
+        const ic=k==='protein'?'💪':k==='cal'?'🔥':k==='sodium'?'🧂':k==='sugar'?'🍬':'•';
+        if(isMax(k)) return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your ${periodLabel()} limit. ${after>goal?`<b style="color:var(--accent)">⚠ This would put you ${Math.round(after-goal)}${u} over your limit.</b>`:`You'd have <b>${Math.round(goal-after)}${u}</b> left.`}</div>`;
+        return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your ${periodLabel()} goal. ${after>=goal?`<b style="color:var(--lime)">That gets you to your ${l.toLowerCase()} goal ✓</b>`:`You'd still need <b>${Math.round(left)}${u}</b>.`}</div>`; }).join('');
+      const dietTags=Object.entries(DIETS).filter(([,[t]])=>(r.diets||'').split(' ').includes(t)).map(([,[,lab]])=>`<span class="nb">${lab}</span>`).join('');
+      const clash=G.diets.filter(d=>!(r.diets||'').split(' ').includes(DIETS[d][0])).map(d=>DIETS[d][1]);
+      $('detBody').innerHTML=`<img class="det-photo" src="${r.img}" alt="${r.name}">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px"><h2>${r.emoji} ${r.name}</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <p style="color:var(--muted);margin:4px 0 0">${r.text} · ${r.tag}</p>${dietTags?`<div class="nut-badges" style="margin:8px 0 0">${dietTags}</div>`:''}${clash.length?`<div class="impact" style="margin:10px 0 0;background:rgba(255,61,139,.12);border-color:rgba(255,61,139,.4)">⚠ Not ${clash.join(', ')} as written. Swap ingredients before cooking.</div>`:''}
+        <div class="stepper"><button type="button" id="sMinus" aria-label="Fewer servings">−</button><span class="num" id="sNum">${n}</span><span>serving${n>1?'s':''}</span><button type="button" id="sPlus" aria-label="More servings">+</button></div>
+        <h3 style="margin:0 0 4px">Ingredients for ${n}</h3>
+        <ul class="ings">${r.qty.map(([nm,q,u])=>`<li><span>${nm}</span><b>${fmtQ(q,u,n)}</b></li>`).join('')}</ul>
+        <div class="facts"><h3>Nutrition Facts</h3><div style="color:var(--muted);font-size:.85rem">Per serving · ${n} serving${n>1?'s':''} total</div>
+          <div class="row big"><span>Calories</span><span>${r.nut.cal}</span></div>
+          ${NK.slice(1).map(([k,l,u])=>`<div class="row"><span>${k==='satfat'?'&nbsp;&nbsp;':''}${l}</span><span>${r.nut[k]}${u} <small style="color:var(--muted)">(${r.nut[k]*n}${u} total)</small></span></div>`).join('')}
+          <div style="color:var(--muted);font-size:.72rem;margin-top:6px">Estimates. Actual values vary by brand and portion.</div></div>
+        ${imp?`<div class="impact"><b>Your ${periodLabel()} goals</b><div style="margin-top:6px;display:grid;gap:6px">${imp}</div></div>`:`<div class="impact">🎯 Set a calorie or protein goal to see how this dish fits. <a href="#" id="toGoals" style="color:var(--lime)">Set goals</a></div>`}
+        <div class="cam-actions"><button type="button" id="logIt">✅ I ate 1 serving</button><button type="button" class="ghost" data-add="${r.ingredients.join('|')}">🛒 Add to list</button></div>`;
+    }
+    $('detModal').addEventListener('click',e=>{ const id=e.target.id;
+      if(e.target.id==='detModal'||e.target.closest('[data-close]')) $('detModal').classList.remove('open');
+      if(id==='sPlus'||id==='sMinus'){ servings=Math.max(1,Math.min(20,servings+(id==='sPlus'?1:-1))); localStorage.setItem('wc_serv',servings); renderDetail(); bump($('sNum')); }
+      if(id==='logIt'){ LOG.push({t:Date.now(),name:cur.name,s:1,nut:cur.nut}); saveG(); burst(e.target,'good'); toast('Logged 1 serving of '+cur.name+' ✅'); renderDetail(); checkGoals(); }
+      if(id==='toGoals'){ e.preventDefault(); $('detModal').classList.remove('open'); openGoals(); }
+      if(e.target.dataset.add){ addItems(e.target.dataset.add.split('|')); }
+    });
+    results.addEventListener('click',e=>{ if(e.target.closest('button')) return; const c=e.target.closest('.recipe'); if(c) openDetail(c.dataset.name); });
+    function checkGoals(){ const t=totals(); activeGoals().forEach(([k,l])=>{ const g=+G.targets[k]; const before=t[k]-(cur.nut[k]||0); if(before<g&&t[k]>=g){ setTimeout(()=>{ if(isMax(k)) toast(`⚠ You've reached your ${l.toLowerCase()} limit ${periodLabel()}`); else { burst(null,'good',24); toast(`🎉 You hit your ${l.toLowerCase()} goal ${periodLabel()}!`); } },700); } }); }
+    function dietOK(list){ return list.filter(r=>G.diets.every(d=>(r.diets||'').split(' ').includes(DIETS[d][0]))); }
+    function suggest(){ const t=totals(); const gp=+G.targets.protein, gc=+G.targets.cal;
+      if(gp && t.protein<gp){ const need=gp-t.protein, calLeft=gc?gc-t.cal:Infinity;
+        const picks=dietOK(recipes).filter(r=>r.nut&&r.nut.cal<=calLeft+50).sort((a,b)=>b.nut.protein/b.nut.cal-a.nut.protein/a.nut.cal).slice(0,3);
+        return `<b>You need ${Math.round(need)}g more protein ${periodLabel()}${gc?` with ${Math.max(0,Math.round(calLeft))} calories left`:''}.</b> Best protein-per-calorie picks:<ul style="margin:6px 0 0;padding-left:18px">${picks.map(r=>`<li><a href="#" data-open="${r.name}" style="color:var(--lime)">${r.name}</a> — ${r.nut.protein}g protein, ${r.nut.cal} cal${r.nut.protein>=need?' ✓ covers it':` (≈${Math.ceil(need/r.nut.protein)} servings to cover)`}</li>`).join('')}</ul>`; }
+      if(gc && t.cal<gc){ const left=gc-t.cal; const fits=dietOK(recipes).filter(r=>r.nut&&r.nut.cal<=left).sort((a,b)=>b.nut.cal-a.nut.cal).slice(0,3);
+        return `<b>${Math.round(left)} calories left ${periodLabel()}.</b> ${fits.length?'Dishes that fit: '+fits.map(r=>`<a href="#" data-open="${r.name}" style="color:var(--lime)">${r.name}</a> (${r.nut.cal})`).join(', '):'Try a light snack like the fruit salad.'}`; }
+      return activeGoals().length?'🎉 You’ve met your goals. Nice work.':''; }
+    function openGoals(){ renderGoals(); $('goalModal').classList.add('open'); }
+    function renderGoals(){ const t=totals(), st=periodStart().getTime();
+      $('goalBody').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2>🎯 Intake goals</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <p style="color:var(--muted);margin:4px 0 12px">Set a target for the time period you choose. Leave any box blank to skip it.</p>
+        <div class="seg" role="tablist">${[['day','Daily'],['week','Weekly'],['custom','Custom']].map(([v,l])=>`<button type="button" data-period="${v}" class="${G.period===v?'on':''}">${l}</button>`).join('')}</div>
+        ${G.period==='custom'?`<div class="gin" style="margin-bottom:10px"><label>Number of days<input type="number" min="1" max="90" id="gDays" value="${G.days}"></label><label>Starting<input type="date" id="gStart" value="${new Date(periodStart()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)}"></label></div>`:''}
+        <h3 style="margin:6px 0 6px;font-size:1rem">Quick start a diet plan</h3>
+        <div class="oops-grid" style="margin:0 0 12px">${Object.entries(PRESETS).map(([k,[l]])=>`<button type="button" data-preset="${k}">${l}</button>`).join('')}</div>
+        <h3 style="margin:6px 0 6px;font-size:1rem">Eating style</h3>
+        <div class="oops-grid" style="margin:0 0 12px">${Object.entries(DIETS).map(([k,[,l]])=>`<button type="button" data-diet="${k}" style="${G.diets.includes(k)?'background:rgba(198,255,61,.22)!important;border-color:var(--lime)!important':''}">${G.diets.includes(k)?'✓ ':''}${l}</button>`).join('')}</div>
+        <h3 style="margin:6px 0 6px;font-size:1rem">Targets for ${periodLabel()}</h3>
+        <div class="gin">${NK.map(([k,l,u])=>`<label>${l}${u?' ('+u+')':''} <a href="#" data-mode="${k}" style="color:${isMax(k)?'var(--sun)':'var(--green)'};text-decoration:none;font-weight:700">${isMax(k)?'max ▾':'min ▴'}</a><input type="number" min="0" inputmode="numeric" data-goal="${k}" value="${G.targets[k]??''}" placeholder="—"></label>`).join('')}</div>
+        <p style="color:var(--muted);font-size:.75rem;margin:6px 0 0">Tap min/max to switch between a goal to reach and a limit to stay under. Talk to your doctor or dietitian about medical diets.</p>
+        <h3 style="margin:18px 0 8px">Progress ${periodLabel()}</h3>
+        ${activeGoals().map(([k,l,u])=>{ const g=+G.targets[k], v=Math.round(t[k]), pc=Math.min(100,v/g*100), mx=isMax(k); return `<div class="goal-row"><div style="display:flex;justify-content:space-between"><b>${l} <small>${mx?'limit':'goal'}</small></b><span>${v} / ${g}${u}</span></div><div class="bar"><i class="${mx&&v>g?'over':''}" style="width:${pc}%"></i></div><small>${mx?(v>g?`⚠ Over limit by ${v-g}${u}`:`${g-v}${u} left`):(v>=g?'Goal met ✓':`${g-v}${u} to go`)}</small></div>`; }).join('')||'<p style="color:var(--muted)">Add a goal above to start tracking.</p>'}
+        ${suggest()?`<div class="impact">${suggest()}</div>`:''}
+        <h3 style="margin:14px 0 6px">Logged ${periodLabel()}</h3>
+        ${LOG.filter(l=>l.t>=st).slice().reverse().map(l=>`<div class="log-item"><span>${new Date(l.t).toLocaleDateString([], {weekday:'short'})} · ${l.name}</span><span>${l.nut.cal*l.s} cal · ${l.nut.protein*l.s}g <button type="button" class="x" data-del="${l.t}" aria-label="Remove">✕</button></span></div>`).join('')||'<p style="color:var(--muted);font-size:.9rem">Nothing yet. Open a recipe and tap “I ate 1 serving.”</p>'}`;
+    }
+    $('goalModal').addEventListener('click',e=>{ const b=e.target;
+      if(b.id==='goalModal'||b.closest('[data-close]')) $('goalModal').classList.remove('open');
+      if(b.dataset.period){ G.period=b.dataset.period; if(G.period==='custom'&&!G.start){ const d=new Date(); d.setHours(0,0,0,0); G.start=d.getTime(); } saveG(); renderGoals(); }
+      if(b.dataset.preset){ const [l,v]=PRESETS[b.dataset.preset]; G.targets={}; Object.entries(v).forEach(([k,x])=>{ if(x!=='') G.targets[k]=Math.round(x*mult()); }); G.modes=Object.assign({},DEFMODE); saveG(); renderGoals(); burst(b,'good'); toast(l+' plan set for '+periodLabel()); }
+      if(b.dataset.diet){ const d=b.dataset.diet; G.diets=G.diets.includes(d)?G.diets.filter(x=>x!==d):[...G.diets,d]; saveG(); renderGoals(); findRecipes(input.value); burst(b,'good',6); }
+      if(b.dataset.mode){ e.preventDefault(); const k=b.dataset.mode; G.modes[k]=isMax(k)?'min':'max'; saveG(); renderGoals(); }
+      if(b.dataset.del){ LOG=LOG.filter(l=>l.t!=b.dataset.del); saveG(); renderGoals(); }
+      if(b.dataset.open){ e.preventDefault(); $('goalModal').classList.remove('open'); openDetail(b.dataset.open); }
+    });
+    $('goalModal').addEventListener('change',e=>{ const b=e.target;
+      if(b.dataset.goal){ G.targets[b.dataset.goal]=b.value; }
+      if(b.id==='gDays') G.days=Math.max(1,+b.value||1);
+      if(b.id==='gStart'&&b.value){ const [y,m,d]=b.value.split('-'); G.start=new Date(y,m-1,d).getTime(); }
+      saveG(); renderGoals(); toast('Goals saved 🎯'); });
+    $('goalBtn').addEventListener('click',()=>{ openGoals(); burst($('goalBtn'),'good',8); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('detModal').classList.remove('open'); $('goalModal').classList.remove('open'); } });
+
+    const baseRender=render;
+    render=function(items){ const ok=dietOK(items); baseRender(ok);
+      if(G.diets.length){ title.textContent=title.textContent.replace(/ · .*$/,'')+' · '+G.diets.map(d=>DIETS[d][1]).join(', '); if(!ok.length) results.innerHTML='<div class="empty">No recipes match your eating style yet. Change it under 🎯 Goals.</div>'; } };
+    render(recipes);
   </script>
 </body>
 </html>
