@@ -72,12 +72,26 @@
     .stores { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
     .stores a { display:block; text-align:center; text-decoration:none; font-weight:750; border-radius:12px; padding:13px; color:#fff; }
     @media (max-width:720px) { header { padding-top:19px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { min-height:130px; } .hero-art::after { font-size:76px; } #results { grid-template-columns:1fr; } form { flex-direction:column; } }
+    .hdr-btns { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    @media (max-width:520px) {
+      header { flex-wrap:wrap; padding:16px 14px 4px; gap:10px; }
+      .brand { font-size:1.2rem; }
+      .hdr-btns { width:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+      .hdr-btns button { padding:11px 6px; font-size:.88rem; white-space:nowrap; }
+      main { padding:18px 14px 60px; }
+      .stores { gap:6px; } .stores a { padding:12px 6px; font-size:.92rem; }
+      .oops-sheet .cam-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+      .oops-sheet .cam-actions button { padding:10px 4px; font-size:.82rem; }
+      .oops-sheet { padding:18px 14px calc(18px + env(safe-area-inset-bottom)); }
+      .li .brand-pick select { width:100%; margin-top:3px; }
+      #listForm, #oopsForm { flex-direction:row; }
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">What’s <span>Cooking?</span></div>
-    <div style="display:flex;gap:8px"><button type="button" class="oops-btn" id="oopsBtn">😬 Oops!</button><button type="button" class="list-btn" id="listBtn">🛒 List<span class="count" id="listCount">0</span></button><button type="button" id="surprise">Surprise me</button></div>
+    <div class="hdr-btns"><button type="button" class="oops-btn" id="oopsBtn">😬 <span class="lbl">Oops!</span></button><button type="button" class="list-btn" id="listBtn">🛒 <span class="lbl">List</span><span class="count" id="listCount">0</span></button><button type="button" id="surprise">Surprise me</button></div>
   </header>
   <main>
     <section class="hero">
