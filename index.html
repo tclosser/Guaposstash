@@ -792,8 +792,8 @@
     findRecipes=function(query){
       const T=terms(); document.querySelectorAll('.flow span').forEach((f,i)=>f.classList.toggle('on',i===(T.length?1:0)));
       if(!T.length){ title.textContent='Popular ideas'; render(recipes.map(r=>({...r,missing:null,have:null}))); return; }
-      const scored=recipes.map(r=>{ const need=r.ingredients.filter(i=>!isStaple(i));
-        const missing=need.filter(i=>!hasTerm(i,T)&&!subFor(i,T)); const have=Math.round((need.length-missing.length)/need.length*100);
+      const scored=recipes.map(r=>{ const need=(r.qty?r.qty.map(q=>q[0].replace(/\(.*?\)/,'').trim()):r.ingredients).filter(i=>!isStaple(i));
+        const missing=need.filter(i=>!hasTerm(i,T)&&!r.ingredients.some(k=>i.includes(k)&&hasTerm(k,T))&&!subFor(i,T)); const have=Math.round((need.length-missing.length)/need.length*100);
         return {...r,missing,have}; }).filter(r=>r.have>0).sort((a,b)=>a.missing.length-b.missing.length||b.have-a.have);
       const now=scored.filter(r=>!r.missing.length).length;
       title.textContent= now? `You can make ${now} dish${now>1?'es':''} right now` : `Closest matches for: ${T.join(', ')}`;
