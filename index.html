@@ -205,6 +205,16 @@
     .cook .steptxt { font-family:"Bricolage Grotesque"; font-size:clamp(1.4rem,6vw,2.2rem); line-height:1.2; font-weight:700; margin:14px 0; flex:1; overflow:auto; animation:pop .35s both; }
     .cook .dots { display:flex; gap:5px; margin:10px 0; } .cook .dots i { flex:1; height:5px; border-radius:9px; background:rgba(255,255,255,.12); } .cook .dots i.on { background:var(--lime); }
     .timer { font-family:"Bricolage Grotesque"; font-size:2.4rem; font-weight:800; color:var(--sun); text-align:center; margin:6px 0; }
+    .yum { display:flex; justify-content:space-between; gap:4px; margin:12px 0; }
+    .yum button { flex:1; font-size:2rem; padding:10px 0; background:rgba(255,255,255,.06)!important; box-shadow:none!important; border:2px solid transparent!important; filter:grayscale(.7); opacity:.75; }
+    .yum button.on { filter:none; opacity:1; border-color:var(--lime)!important; background:rgba(198,255,61,.14)!important; animation:bump .45s cubic-bezier(.3,1.8,.5,1); }
+    .yumlbl { text-align:center; font-weight:800; color:var(--lime); min-height:1.3em; }
+    .tagpick { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
+    .tagpick button { background:rgba(255,255,255,.07)!important; color:#fff; box-shadow:none!important; border:1px solid var(--line)!important; padding:7px 11px; font-size:.82rem; }
+    .tagpick button.on { background:rgba(255,61,139,.25)!important; border-color:var(--accent)!important; }
+    textarea { width:100%; min-height:70px; background:rgba(255,255,255,.08); color:#fff; border:1.5px solid var(--line); border-radius:14px; padding:12px; font:inherit; resize:vertical; }
+    .rev { border-bottom:1px solid var(--line); padding:10px 0; font-size:.9rem; } .rev .who { color:var(--muted); font-size:.78rem; }
+    .tweak { background:rgba(139,92,255,.16); border:1px solid rgba(139,92,255,.45); border-radius:14px; padding:12px; margin-bottom:12px; font-size:.9rem; }
   </style>
 </head>
 <body>
@@ -279,6 +289,7 @@
   <div class="modal" id="goalModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="goalBody"></div></div>
   <div class="modal" id="prepModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="prepBody"></div></div>
   <div class="cook" id="cook" role="dialog" aria-modal="true"></div>
+  <div class="modal" id="revModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="revBody"></div></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
@@ -844,6 +855,81 @@
     $('oopsModal').style.zIndex=90;
     // re-run matching whenever scanned chips change the input
     input.addEventListener('input',()=>{ clearTimeout(window._ft); window._ft=setTimeout(()=>findRecipes(input.value),500); });
+
+    // ---- Follow-up, Yum rating, reviews & personal tweaks ----
+    // SHARED REVIEWS: fill these in to share reviews between all users (Supabase, free tier). Blank = saved on this device only.
+    const COMMUNITY={ supabaseUrl:'', supabaseAnonKey:'' };
+    const YUM=[['🤢','Not for me'],['😐','Meh'],['🙂','Pretty good'],['😋','Yum!'],['🤤','Obsessed!']];
+    const RTAGS=['Would make again','Easy','Kid-approved','Great leftovers','Too salty','Too bland','Needed spice','Took longer','Perfect as is'];
+    let REV=JSON.parse(localStorage.getItem('wc_reviews')||'[]'), PEND=JSON.parse(localStorage.getItem('wc_pending')||'null'), ME=localStorage.getItem('wc_name')||'';
+    const saveRev=()=>{ localStorage.setItem('wc_reviews',JSON.stringify(REV)); localStorage.setItem('wc_pending',JSON.stringify(PEND)); };
+    const shared=()=>COMMUNITY.supabaseUrl&&COMMUNITY.supabaseAnonKey;
+    const sbH=()=>({apikey:COMMUNITY.supabaseAnonKey,Authorization:'Bearer '+COMMUNITY.supabaseAnonKey,'Content-Type':'application/json'});
+    let CACHE={};
+    async function fetchReviews(name){ if(!shared()) return REV.filter(r=>r.dish===name);
+      if(CACHE[name]) return CACHE[name];
+      try{ const r=await fetch(`${COMMUNITY.supabaseUrl}/rest/v1/reviews?dish=eq.${encodeURIComponent(name)}&order=created_at.desc&limit=50`,{headers:sbH()}); CACHE[name]=await r.json(); return CACHE[name]; }catch(e){ return REV.filter(r=>r.dish===name); } }
+    async function postReview(rv){ REV.push(rv); saveRev(); delete CACHE[rv.dish];
+      if(shared()){ try{ await fetch(`${COMMUNITY.supabaseUrl}/rest/v1/reviews`,{method:'POST',headers:{...sbH(),Prefer:'return=minimal'},body:JSON.stringify({dish:rv.dish,yum:rv.yum,tags:rv.tags,tweak:rv.tweak,review:rv.review,name:rv.name,servings:rv.servings})}); }catch(e){} } }
+    let RV=null;
+    function askFollowUp(name, fromCook){ const r=recipes.find(x=>x.name===name); if(!r) return; RV={dish:name,yum:0,tags:[],tweak:'',review:'',name:ME,servings};
+      $('revBody').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2>${fromCook?'🎉 How was it?':'👋 Did you make it?'}</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <div style="display:flex;gap:12px;align-items:center;margin:10px 0"><img src="${r.img}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover"><div><b>${r.emoji} ${r.name}</b><div style="color:var(--muted);font-size:.85rem">${fromCook?'You just finished cooking. Rate it.':'You started this recipe earlier.'}</div></div></div>
+        ${fromCook?'':`<div class="cam-actions" id="madeQ" style="margin:0 0 6px"><button type="button" id="madeYes">😋 Yes, I made it</button><button type="button" class="ghost" id="madeNo">Not yet</button><button type="button" class="ghost" id="madeSkip">Skip</button></div>`}
+        <div id="revForm" ${fromCook?'':'hidden'}>
+          <h3 style="margin:10px 0 0">Yum rating</h3>
+          <div class="yum">${YUM.map(([e,l],i)=>`<button type="button" data-yum="${i+1}" aria-label="${l}">${e}</button>`).join('')}</div><div class="yumlbl" id="yumLbl">Tap a face</div>
+          <h3 style="margin:10px 0 0">Quick feedback</h3>
+          <div class="tagpick">${RTAGS.map(t=>`<button type="button" data-rtag="${t}">${t}</button>`).join('')}</div>
+          <h3 style="margin:6px 0 6px">✏️ Your version <small style="color:var(--muted);font-weight:500">— what did you add, swap, or change?</small></h3>
+          <textarea id="rvTweak" placeholder="e.g. Added chili flakes and swapped broccoli for spinach"></textarea>
+          <h3 style="margin:12px 0 6px">Review for other cooks</h3>
+          <textarea id="rvText" placeholder="What should someone know before making this?"></textarea>
+          <input id="rvName" placeholder="Display name (optional)" value="${esc(ME)}" style="width:100%;margin-top:8px">
+          <label style="display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);margin-top:8px"><input type="checkbox" id="rvShare" checked style="width:18px;height:18px"> Share my review with other cooks</label>
+          <button type="button" id="rvSave" style="width:100%;margin-top:12px">Save review</button>
+        </div>`;
+      $('revModal').classList.add('open'); }
+    $('revModal').addEventListener('click',e=>{ const b=e.target.closest('button'); if(e.target.id==='revModal'||(b&&b.dataset.close)){ $('revModal').classList.remove('open'); return; } if(!b) return;
+      if(b.id==='madeYes'){ $('madeQ').remove(); $('revForm').hidden=false; burst(b,'good'); }
+      if(b.id==='madeNo'){ PEND={dish:RV.dish,t:Date.now()}; saveRev(); $('revModal').classList.remove('open'); toast('No problem — we’ll check back later 👍'); }
+      if(b.id==='madeSkip'){ PEND=null; saveRev(); $('revModal').classList.remove('open'); }
+      if(b.dataset.yum){ RV.yum=+b.dataset.yum; document.querySelectorAll('[data-yum]').forEach(x=>x.classList.toggle('on',+x.dataset.yum===RV.yum)); $('yumLbl').textContent=YUM[RV.yum-1][1]; burst(b,RV.yum>=4?'good':'oops',RV.yum*3); }
+      if(b.dataset.rtag){ const t=b.dataset.rtag; RV.tags=RV.tags.includes(t)?RV.tags.filter(x=>x!==t):[...RV.tags,t]; b.classList.toggle('on'); }
+      if(b.id==='rvSave'){ if(!RV.yum){ toast('Pick a yum face first 😋'); document.querySelector('.yum').classList.add('nudge'); return; }
+        RV.tweak=$('rvTweak').value.trim(); RV.review=$('rvText').value.trim(); RV.name=$('rvName').value.trim(); ME=RV.name; localStorage.setItem('wc_name',ME); RV.t=Date.now(); RV.mine=true; RV.shared=$('rvShare').checked;
+        if(RV.shared) postReview(RV); else { REV.push(RV); saveRev(); }
+        PEND=null; saveRev(); $('revModal').classList.remove('open'); burst(null,'good',30); toast(RV.yum>=4?'Thanks, chef! Review saved 🤤':'Thanks for the honest review 🙏'); }
+    });
+    // trigger 1: finishing cook mode asks right away
+    document.addEventListener('click',e=>{ if(e.target.id==='cookNext'&&e.target.textContent.includes('Done')) setTimeout(()=>{ $('detModal').classList.remove('open'); askFollowUp(cur.name,true); },900);
+      // trigger 2: starting to cook (or exiting early) schedules a follow-up
+      if(e.target.id==='startCook') { PEND={dish:cur.name,t:Date.now()}; saveRev(); } },true);
+    // trigger 3: next visit, 30+ min after starting
+    setTimeout(()=>{ if(PEND&&Date.now()-PEND.t>30*60e3&&!REV.some(r=>r.dish===PEND.dish&&r.t>PEND.t)) askFollowUp(PEND.dish,false); },2500);
+    // show community + your tweaks on recipe detail
+    const _rd2=renderDetail;
+    renderDetail=function(){ _rd2(); if(!cur) return; const name=cur.name, box=document.createElement('div'); box.id='revBox'; $('detBody').appendChild(box);
+      const mine=REV.filter(r=>r.dish===name&&r.mine&&r.tweak).slice(-1)[0];
+      if(mine) $('detBody').querySelector('.ings').insertAdjacentHTML('beforebegin',`<div class="tweak">✏️ <b>Your version</b> (${new Date(mine.t).toLocaleDateString()}): ${esc(mine.tweak)}</div>`);
+      fetchReviews(name).then(list=>{ if(!$('revBox')||cur.name!==name) return; const n=list.length, avg=n?list.reduce((a,r)=>a+r.yum,0)/n:0;
+        const tagC={}; list.forEach(r=>(r.tags||[]).forEach(t=>tagC[t]=(tagC[t]||0)+1)); const top=Object.entries(tagC).sort((a,b)=>b[1]-a[1]).slice(0,4);
+        const tw=list.filter(r=>r.tweak).slice(0,3);
+        $('revBox').innerHTML=`<h3 style="margin:18px 0 6px">${n?`${YUM[Math.round(avg)-1][0]} ${avg.toFixed(1)} yum · ${n} review${n>1?'s':''}`:'💬 No reviews yet'}</h3>
+          ${top.length?`<div class="nut-badges" style="margin:0 0 8px">${top.map(([t,c])=>`<span class="nb">${t} · ${c}</span>`).join('')}</div>`:''}
+          ${tw.length?`<div class="tweak" style="background:rgba(30,227,161,.1);border-color:rgba(30,227,161,.35)"><b>🔧 How cooks made it their own</b><ul style="margin:6px 0 0;padding-left:18px">${tw.map(r=>`<li>${esc(r.tweak)} <small style="color:var(--muted)">— ${esc(r.name||'A cook')}</small></li>`).join('')}</ul></div>`:''}
+          ${list.filter(r=>r.review).slice(0,5).map(r=>`<div class="rev"><div>${YUM[r.yum-1][0]} ${esc(r.review)}</div><div class="who">${esc(r.name||'A cook')} · ${new Date(r.t||r.created_at).toLocaleDateString()}</div></div>`).join('')}
+          <button type="button" class="ghost" id="rateNow" style="width:100%;margin-top:10px">⭐ I made this — add my review</button>`; });
+    };
+    document.addEventListener('click',e=>{ if(e.target.id==='rateNow'){ $('detModal').classList.remove('open'); askFollowUp(cur.name,true); } });
+    // show avg yum on cards
+    const _render3=render;
+    render=function(items){ _render3(items); results.querySelectorAll('.recipe').forEach(c=>{ const l=REV.filter(r=>r.dish===c.dataset.name); if(!l.length) return; const a=l.reduce((x,r)=>x+r.yum,0)/l.length; const h=c.querySelector('h3'); h&&h.insertAdjacentHTML('afterend',`<div class="nb" style="display:inline-block;margin:0 0 6px">${YUM[Math.round(a)-1][0]} ${a.toFixed(1)} · ${l.length} review${l.length>1?'s':''}</div>`); }); };
+    // cook history inside Goals
+    const _rg3=renderGoals;
+    renderGoals=function(){ _rg3(); const mine=REV.filter(r=>r.mine).slice().reverse(); if(!mine.length) return;
+      $('goalBody').insertAdjacentHTML('beforeend',`<h3 style="margin:16px 0 6px">👩‍🍳 My cook history</h3>${mine.slice(0,10).map(r=>`<div class="log-item"><span>${YUM[r.yum-1][0]} ${esc(r.dish)}${r.tweak?` <small>· ✏️ ${esc(r.tweak.slice(0,40))}</small>`:''}</span><span>${new Date(r.t).toLocaleDateString()}</span></div>`).join('')}`); };
+    render(recipes);
   </script>
 </body>
 </html>
