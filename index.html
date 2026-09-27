@@ -587,8 +587,8 @@
     function renderDetail(){ const r=cur, n=servings, t=totals();
       const imp=activeGoals().map(([k,l,u])=>{ const add=r.nut[k], goal=+G.targets[k], after=t[k]+add, left=Math.max(0,goal-after);
         const ic=k==='protein'?'💪':k==='cal'?'🔥':k==='sodium'?'🧂':k==='sugar'?'🍬':'•';
-        if(isMax(k)) return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your ${periodLabel()} limit. ${after>goal?`<b style="color:var(--accent)">⚠ This would put you ${Math.round(after-goal)}${u} over your limit.</b>`:`You'd have <b>${Math.round(goal-after)}${u}</b> left.`}</div>`;
-        return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your ${periodLabel()} goal. ${after>=goal?`<b style="color:var(--lime)">That gets you to your ${l.toLowerCase()} goal ✓</b>`:`You'd still need <b>${Math.round(left)}${u}</b>.`}</div>`; }).join('');
+        if(isMax(k)) return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your limit ${periodLabel()}. ${after>goal?`<b style="color:var(--accent)">⚠ This would put you ${Math.round(after-goal)}${u} over your limit.</b>`:`You'd have <b>${Math.round(goal-after)}${u}</b> left.`}</div>`;
+        return `<div>${ic} <b>1 serving</b> = ${add}${u} ${l.toLowerCase()} → ${Math.round(add/goal*100)}% of your goal ${periodLabel()}. ${after>=goal?`<b style="color:var(--lime)">That gets you to your ${l.toLowerCase()} goal ✓</b>`:`You'd still need <b>${Math.round(left)}${u}</b>.`}</div>`; }).join('');
       const dietTags=Object.entries(DIETS).filter(([,[t]])=>(r.diets||'').split(' ').includes(t)).map(([,[,lab]])=>`<span class="nb">${lab}</span>`).join('');
       const clash=G.diets.filter(d=>!(r.diets||'').split(' ').includes(DIETS[d][0])).map(d=>DIETS[d][1]);
       $('detBody').innerHTML=`<img class="det-photo" src="${r.img}" alt="${r.name}">
@@ -601,7 +601,7 @@
           <div class="row big"><span>Calories</span><span>${r.nut.cal}</span></div>
           ${NK.slice(1).map(([k,l,u])=>`<div class="row"><span>${k==='satfat'?'&nbsp;&nbsp;':''}${l}</span><span>${r.nut[k]}${u} <small style="color:var(--muted)">(${r.nut[k]*n}${u} total)</small></span></div>`).join('')}
           <div style="color:var(--muted);font-size:.72rem;margin-top:6px">Estimates. Actual values vary by brand and portion.</div></div>
-        ${imp?`<div class="impact"><b>Your ${periodLabel()} goals</b><div style="margin-top:6px;display:grid;gap:6px">${imp}</div></div>`:`<div class="impact">🎯 Set a calorie or protein goal to see how this dish fits. <a href="#" id="toGoals" style="color:var(--lime)">Set goals</a></div>`}
+        ${imp?`<div class="impact"><b>Your goals ${periodLabel()}</b><div style="margin-top:6px;display:grid;gap:6px">${imp}</div></div>`:`<div class="impact">🎯 Set a calorie or protein goal to see how this dish fits. <a href="#" id="toGoals" style="color:var(--lime)">Set goals</a></div>`}
         <div class="cam-actions"><button type="button" id="logIt">✅ I ate 1 serving</button><button type="button" class="ghost" data-add="${r.ingredients.join('|')}">🛒 Add to list</button></div>`;
     }
     $('detModal').addEventListener('click',e=>{ const id=e.target.id;
