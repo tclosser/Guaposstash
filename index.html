@@ -158,6 +158,13 @@
     .bump { animation:bump .45s cubic-bezier(.3,1.8,.5,1); } @keyframes bump { 40% { transform:scale(1.25) rotate(-6deg); } }
     .nudge { animation:nudge 1.2s ease-in-out 2; } @keyframes nudge { 0%,100%{box-shadow:0 0 0 0 rgba(198,255,61,.7)} 50%{box-shadow:0 0 0 12px rgba(198,255,61,0)} }
     @media (prefers-reduced-motion:reduce){ *,*::before { animation:none!important; transition:none!important; } }
+    .recipe { padding:0 0 18px; overflow:hidden; }
+    .recipe > :not(.photo) { margin-left:20px; margin-right:20px; }
+    .photo { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; margin-bottom:14px; }
+    .photo img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s cubic-bezier(.3,1.2,.5,1); }
+    .photo::after { content:""; position:absolute; inset:auto 0 0 0; height:45%; background:linear-gradient(transparent,rgba(20,11,46,.75)); }
+    .photo .emoji { position:absolute; left:14px; bottom:10px; z-index:1; font-size:2rem; margin:0; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+    .recipe:hover .photo img { transform:scale(1.07); }
   </style>
 </head>
 <body>
@@ -231,22 +238,22 @@
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
     const recipes = [
-      {name:'Chicken & Rice Skillet', ingredients:['chicken','rice','broccoli','onion'], text:'One-pan comfort food with whatever vegetables you have.', emoji:'🍗', tag:'25 minutes'},
-      {name:'Pantry Pasta', ingredients:['pasta','tomato','garlic','onion','cheese'], text:'A fast, flexible pasta dinner built around pantry basics.', emoji:'🍝', tag:'20 minutes'},
-      {name:'Loaded Veggie Omelet', ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', emoji:'🍳', tag:'15 minutes'},
-      {name:'Crispy Fried Rice', ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', emoji:'🍚', tag:'20 minutes'},
-      {name:'Black Bean Tacos', ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', emoji:'🌮', tag:'15 minutes'},
-      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', emoji:'🥖', tag:'10 minutes'},
-      {name:'Veggie Stir-Fry', ingredients:['broccoli','carrot','pepper','mushroom','zucchini','cabbage','rice','garlic'], text:'Toss whatever produce you scanned into a hot pan with soy and garlic.', emoji:'🥦', tag:'20 minutes'},
-      {name:'Fresh Fruit Salad', ingredients:['apple','banana','orange','strawberry','pineapple','lemon'], text:'Chop, squeeze a little lemon, and chill.', emoji:'🍓', tag:'10 minutes'},
-      {name:'Loaded Baked Potato', ingredients:['potato','cheese','butter','broccoli','cream'], text:'Crispy skin, fluffy inside, piled with toppings.', emoji:'🥔', tag:'45 minutes'},
-      {name:'Avocado Toast', ingredients:['avocado','bread','eggs','lemon','tomato'], text:'Smashed avocado on toast, egg optional.', emoji:'🥑', tag:'10 minutes'}
+      {name:'Chicken & Rice Skillet', ingredients:['chicken','rice','broccoli','onion'], text:'One-pan comfort food with whatever vegetables you have.', img:'img/chicken_rice.webp', emoji:'🍗', tag:'25 minutes'},
+      {name:'Pantry Pasta', ingredients:['pasta','tomato','garlic','onion','cheese'], text:'A fast, flexible pasta dinner built around pantry basics.', img:'img/pantry_pasta.webp', emoji:'🍝', tag:'20 minutes'},
+      {name:'Loaded Veggie Omelet', ingredients:['eggs','cheese','spinach','onion','pepper'], text:'Use leftover vegetables for a quick breakfast-for-dinner.', img:'img/omelet.webp', emoji:'🍳', tag:'15 minutes'},
+      {name:'Crispy Fried Rice', ingredients:['rice','eggs','chicken','onion','broccoli'], text:'The best use for cold rice and stray refrigerator ingredients.', img:'img/fried_rice.webp', emoji:'🍚', tag:'20 minutes'},
+      {name:'Black Bean Tacos', ingredients:['beans','tortilla','cheese','tomato','onion'], text:'A filling weeknight meal with a little crunch and spice.', img:'img/tacos.webp', emoji:'🌮', tag:'15 minutes'},
+      {name:'Garlic Butter Toast', ingredients:['bread','butter','garlic','cheese'], text:'A simple side or late-night snack from the essentials.', img:'img/garlic_toast.webp', emoji:'🥖', tag:'10 minutes'},
+      {name:'Veggie Stir-Fry', ingredients:['broccoli','carrot','pepper','mushroom','zucchini','cabbage','rice','garlic'], text:'Toss whatever produce you scanned into a hot pan with soy and garlic.', img:'img/stir_fry.webp', emoji:'🥦', tag:'20 minutes'},
+      {name:'Fresh Fruit Salad', ingredients:['apple','banana','orange','strawberry','pineapple','lemon'], text:'Chop, squeeze a little lemon, and chill.', img:'img/fruit_salad.webp', emoji:'🍓', tag:'10 minutes'},
+      {name:'Loaded Baked Potato', ingredients:['potato','cheese','butter','broccoli','cream'], text:'Crispy skin, fluffy inside, piled with toppings.', img:'img/baked_potato.webp', emoji:'🥔', tag:'45 minutes'},
+      {name:'Avocado Toast', ingredients:['avocado','bread','eggs','lemon','tomato'], text:'Smashed avocado on toast, egg optional.', img:'img/avocado_toast.webp', emoji:'🥑', tag:'10 minutes'}
     ];
     const results = document.getElementById('results');
     const title = document.getElementById('resultTitle');
     const input = document.getElementById('ingredients');
     function render(items) {
-      results.innerHTML = items.length ? items.map(r => `<article class="recipe"><div class="emoji">${r.emoji}</div><h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span><button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
+      results.innerHTML = items.length ? items.map(r => `<article class="recipe">${r.img?`<div class="photo"><img src="${r.img}" alt="${r.name}" loading="lazy"><span class="emoji">${r.emoji}</span></div>`:`<div class="emoji">${r.emoji}</div>`}<h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span><button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
     }
     function findRecipes(query) {
       const terms = query.toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
