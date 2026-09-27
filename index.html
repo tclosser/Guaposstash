@@ -191,6 +191,20 @@
     .gin { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .gin label { font-size:.8rem; color:var(--muted); } .gin input { width:100%; margin-top:3px; padding:10px; }
     .impact { background:rgba(30,227,161,.1); border:1px solid rgba(30,227,161,.35); border-radius:14px; padding:12px; margin-bottom:12px; font-size:.92rem; line-height:1.45; }
     .log-item { display:flex; justify-content:space-between; gap:8px; font-size:.86rem; padding:6px 0; border-bottom:1px solid var(--line); color:var(--muted); }
+    .flow { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+    .flow span { font-size:.74rem; font-weight:700; padding:5px 9px; border-radius:999px; background:rgba(255,255,255,.07); color:var(--muted); border:1px solid var(--line); }
+    .flow span.on { background:rgba(198,255,61,.16); color:var(--lime); border-color:rgba(198,255,61,.4); }
+    .grp { grid-column:1/-1; font-family:"Bricolage Grotesque"; font-size:1.15rem; font-weight:800; margin:10px 0 -2px; }
+    .ings li.have span:first-child::before { content:"✓ "; color:var(--lime); font-weight:800; }
+    .ings li.need span:first-child::before { content:"✗ "; color:var(--accent); font-weight:800; }
+    .ings li.need span:first-child { color:#ffb3cf; }
+    .sub { display:block; font-size:.78rem; color:var(--green); margin-top:2px; }
+    .cook { position:fixed; inset:0; z-index:80; background:linear-gradient(180deg,#1b1042,#140b2e); display:none; flex-direction:column; padding:20px 18px calc(20px + env(safe-area-inset-bottom)); }
+    .cook.open { display:flex; }
+    .cook .stepno { color:var(--lime); font-weight:800; letter-spacing:.08em; font-size:.8rem; text-transform:uppercase; }
+    .cook .steptxt { font-family:"Bricolage Grotesque"; font-size:clamp(1.4rem,6vw,2.2rem); line-height:1.2; font-weight:700; margin:14px 0; flex:1; overflow:auto; animation:pop .35s both; }
+    .cook .dots { display:flex; gap:5px; margin:10px 0; } .cook .dots i { flex:1; height:5px; border-radius:9px; background:rgba(255,255,255,.12); } .cook .dots i.on { background:var(--lime); }
+    .timer { font-family:"Bricolage Grotesque"; font-size:2.4rem; font-weight:800; color:var(--sun); text-align:center; margin:6px 0; }
   </style>
 </head>
 <body>
@@ -201,10 +215,11 @@
   <main>
     <section class="hero">
       <div>
-        <h1>Make dinner from what you <em>already have.</em></h1>
-        <p class="lead">Enter ingredients from your fridge, pantry, or stash. What’s Cooking suggests simple meals you can make tonight.</p>
+        <h1>Scan your kitchen. <em>Cook tonight.</em></h1>
+        <div class="flow"><span class="on">1 📷 What you have</span><span>2 🍽️ What you can make</span><span>3 🛒 Get what’s missing</span><span>4 👩‍🍳 Cook it</span></div>
+        <p class="lead">Snap or type what’s in your fridge and pantry. We’ll show what you can make right now, what you’re missing, and walk you through cooking it.</p>
         <form id="ingredientForm">
-          <input id="ingredients" type="text" autocomplete="off" placeholder="Try: chicken, rice, broccoli" aria-label="Ingredients" />
+          <input id="ingredients" type="text" autocomplete="off" placeholder="What do you have? chicken, rice, eggs…" aria-label="Ingredients" />
           <button type="submit">Find recipes</button>
           <button type="button" class="cam-btn" id="openCam">📷 Scan</button>
         </form>
@@ -263,6 +278,7 @@
   <div class="modal" id="detModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="detBody"></div></div>
   <div class="modal" id="goalModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="goalBody"></div></div>
   <div class="modal" id="prepModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="prepBody"></div></div>
+  <div class="cook" id="cook" role="dialog" aria-modal="true"></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
@@ -282,7 +298,7 @@
     const title = document.getElementById('resultTitle');
     const input = document.getElementById('ingredients');
     function render(items) {
-      results.innerHTML = items.length ? items.map(r => `<article class="recipe" data-name="${r.name}">${r.img?`<div class="photo"><img src="${r.img}" alt="${r.name}" loading="lazy"><span class="emoji">${r.emoji}</span></div>`:`<div class="emoji">${r.emoji}</div>`}<h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span>${r.nut?`<div class="nut-badges" style="margin:8px 0 0"><span class="nb">🔥 ${r.nut.cal} cal</span><span class="nb p">💪 ${r.nut.protein}g protein</span></div>`:''}<button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
+      results.innerHTML = items.length ? items.map(r => `<article class="recipe" data-name="${r.name}">${r.img?`<div class="photo"><img src="${r.img}" alt="${r.name}" loading="lazy"><span class="emoji">${r.emoji}</span></div>`:`<div class="emoji">${r.emoji}</div>`}<h3>${r.name}</h3><p>${r.text}</p>${r.missing?(r.missing.length?`<p class="miss">🛒 Need ${r.missing.length}: ${r.missing.join(', ')}</p>`:`<p class="miss" style="color:var(--lime)">✅ You have everything</p>`):''}${r.have!=null?`<div class="bar" style="margin:0 20px 8px;height:6px"><i style="width:${r.have}%"></i></div>`:''}<span class="tag">${r.tag}</span>${r.nut?`<div class="nut-badges" style="margin:8px 0 0"><span class="nb">🔥 ${r.nut.cal} cal</span><span class="nb p">💪 ${r.nut.protein}g protein</span></div>`:''}<button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
     }
     function findRecipes(query) {
       const terms = query.toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
@@ -748,6 +764,83 @@
     renderGoals=function(){ _renderGoals(); const t=totals(), short={}, room={};
       activeGoals().forEach(([k])=>{ const g=+G.targets[k]; if(isMax(k)) room[k]=g-t[k]; else short[k]=g-t[k]; });
       const h=gapHTML(gapSuggestions(short,room)); const btn=$('openPrep'); if(h&&btn) btn.insertAdjacentHTML('beforebegin','<h3 style="margin:16px 0 8px">Shop to reach your goals '+periodLabel()+'</h3>'+h); };
+
+    // ---- Core flow: on hand -> make now -> get missing / substitute -> cook ----
+    const STAPLES=['salt','pepper','oil','olive oil','water'];
+    const SUBS={chicken:['turkey','tofu','beans','tuna'],rice:['quinoa','cauliflower rice','pasta','couscous'],pasta:['rice','noodles','zucchini'],cheese:['parmesan','cheddar','mozzarella','nutritional yeast'],
+      eggs:['egg','tofu'],tortilla:['bread','lettuce','pita'],beans:['lentils','chickpeas','black beans'],onion:['shallot','scallion','green onion','leek'],garlic:['garlic powder','shallot'],
+      broccoli:['spinach','zucchini','green beans','cauliflower','peas'],butter:['oil','olive oil','margarine'],bread:['tortilla','bagel','pita','english muffin'],cream:['sour cream','greek yogurt','milk'],
+      avocado:['hummus','guacamole'],tomato:['salsa','tomato sauce','cherry tomatoes'],spinach:['kale','arugula','lettuce'],pepper:['onion','zucchini'],soy:['salt','teriyaki'],
+      lime:['lemon','vinegar'],lemon:['lime','vinegar'],broth:['water','bouillon'],mushroom:['zucchini','eggplant'],carrot:['celery','peas'],zucchini:['squash','broccoli'],potato:['sweet potato'],
+      apple:['pear'],banana:['mango'],strawberry:['berries','blueberries','grapes'],pineapple:['mango','peach'],orange:['clementine','grapefruit']};
+    const STEPS={
+      'Chicken & Rice Skillet':['Season the chicken with salt and pepper.','Heat the oil in a large skillet over medium-high. Sear chicken 4 minutes per side until golden; set aside.','Add the onion and cook 3 minutes until soft.','Stir in the rice for 1 minute, then pour in the broth and bring to a boil.','Nestle the chicken on top, cover, and simmer on low for 18 minutes.','Scatter the broccoli over, cover again, and cook 5 minutes more.','Check chicken reaches 165°F. Rest 5 minutes, fluff the rice, and serve.'],
+      'Pantry Pasta':['Bring a big pot of salted water to a boil.','Cook the pasta 1 minute less than the box says. Save ½ cup pasta water, then drain.','Meanwhile warm the olive oil over medium; cook the onion 4 minutes.','Add the garlic for 30 seconds, then the crushed tomatoes. Simmer 10 minutes.','Toss the pasta into the sauce with a splash of pasta water.','Top with parmesan and serve.'],
+      'Loaded Veggie Omelet':['Whisk the eggs with a pinch of salt and pepper.','Melt the butter in a nonstick pan over medium. Cook the onion and pepper 3 minutes.','Add the spinach and stir 1 minute until wilted. Spread veggies evenly.','Pour in the eggs. Cook 2 minutes, lifting the edges so raw egg flows under.','Sprinkle cheese on one half, fold, and cook 1 minute more.','Slide onto a plate and serve.'],
+      'Crispy Fried Rice':['Cut the chicken into small pieces and season lightly.','Heat half the oil in a wok or big skillet over high. Cook chicken 5 minutes until done; remove.','Add the rest of the oil, then the onion and broccoli. Stir-fry 3 minutes.','Push veggies aside, scramble the eggs in the space for 1 minute.','Add the cold rice, press it flat, and let it crisp 2 minutes before stirring.','Return the chicken, add soy sauce, and toss 1 minute. Serve hot.'],
+      'Black Bean Tacos':['Drain and rinse the black beans.','Warm the beans in a pan over medium with a pinch of salt and cumin for 5 minutes, mashing some.','Dice the tomato and onion.','Warm the tortillas in a dry pan 30 seconds per side.','Fill with beans, cheese, tomato, and onion.','Squeeze lime over the top and serve.'],
+      'Garlic Butter Toast':['Heat the oven or toaster oven to 400°F.','Mash the butter with the minced garlic.','Spread over the bread slices and top with cheese.','Bake 8 minutes until golden and bubbly.','Cool 1 minute and serve.'],
+      'Veggie Stir-Fry':['Chop all the vegetables into bite-size pieces.','Heat the oil in a wok or large pan over high.','Add carrots and broccoli first; stir-fry 3 minutes.','Add pepper, mushrooms, and zucchini; stir-fry 3 minutes more.','Add garlic for 30 seconds, then the soy sauce. Toss to coat.','Serve over the warm rice.'],
+      'Fresh Fruit Salad':['Wash all the fruit.','Chop the apple, banana, orange, strawberries, and pineapple into bite-size pieces.','Toss gently in a bowl with the lemon juice.','Chill 10 minutes and serve.'],
+      'Loaded Baked Potato':['Heat the oven to 425°F. Scrub the potato and poke it all over with a fork.','Rub with a little oil and salt and bake 50 minutes until tender.','Steam or microwave the broccoli 3 minutes.','Split the potato, fluff the inside, and add the butter.','Top with cheese, broccoli, and sour cream.'],
+      'Avocado Toast':['Toast the bread until golden.','Mash the avocado with lemon juice, salt, and pepper.','Fry the egg in a lightly oiled pan 3 minutes for a runny yolk.','Spread avocado on the toast, top with the egg and halved tomatoes.','Add chili flakes if you like and serve.']
+    };
+    const terms=()=>input.value.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean);
+    const hasTerm=(word,T)=>T.some(t=>word.includes(t)||t.includes(word)|| (t.endsWith('s')&&word.includes(t.slice(0,-1))));
+    const isStaple=w=>STAPLES.some(x=>w===x||w.endsWith(' '+x));
+    function subFor(word,T){ const key=Object.keys(SUBS).find(k=>word.includes(k)); if(!key) return null; return SUBS[key].find(x=>hasTerm(x,T))||null; }
+    findRecipes=function(query){
+      const T=terms(); document.querySelectorAll('.flow span').forEach((f,i)=>f.classList.toggle('on',i===(T.length?1:0)));
+      if(!T.length){ title.textContent='Popular ideas'; render(recipes.map(r=>({...r,missing:null,have:null}))); return; }
+      const scored=recipes.map(r=>{ const need=r.ingredients.filter(i=>!isStaple(i));
+        const missing=need.filter(i=>!hasTerm(i,T)&&!subFor(i,T)); const have=Math.round((need.length-missing.length)/need.length*100);
+        return {...r,missing,have}; }).filter(r=>r.have>0).sort((a,b)=>a.missing.length-b.missing.length||b.have-a.have);
+      const now=scored.filter(r=>!r.missing.length).length;
+      title.textContent= now? `You can make ${now} dish${now>1?'es':''} right now` : `Closest matches for: ${T.join(', ')}`;
+      render(scored);
+      // group headers
+      const cards=[...results.querySelectorAll('.recipe')]; let last=null;
+      cards.forEach(c=>{ const r=scored.find(x=>x.name===c.dataset.name); if(!r) return; const g=!r.missing.length?'✅ Make it now':r.missing.length<=2?'🛒 Almost there — grab 1–2 things':'🧺 Need a few more things';
+        if(g!==last){ c.insertAdjacentHTML('beforebegin',`<div class="grp">${g}</div>`); last=g; } });
+    };
+    // detail: have / need / substitute per ingredient + Start cooking
+    const _renderDetail=renderDetail;
+    renderDetail=function(){ _renderDetail(); const T=terms(); if(!cur) return;
+      const lis=$('detBody').querySelectorAll('.ings li'); const missingNames=[];
+      cur.qty.forEach(([nm],i)=>{ const li=lis[i]; if(!li||!T.length) return; const base=nm.replace(/\(.*?\)/,'').trim();
+        if(isStaple(base)||hasTerm(base,T)||cur.ingredients.some(k=>base.includes(k)&&hasTerm(k,T))) li.classList.add('have');
+        else { const sub=subFor(base,T); if(sub){ li.classList.add('have'); li.firstElementChild.insertAdjacentHTML('beforeend',`<span class="sub">↻ Use your ${esc(sub)} instead</span>`); }
+          else { li.classList.add('need'); missingNames.push(base); const alt=(SUBS[Object.keys(SUBS).find(k=>base.includes(k))]||[]).slice(0,2); if(alt.length) li.firstElementChild.insertAdjacentHTML('beforeend',`<span class="sub" style="color:var(--muted)">or swap: ${alt.join(', ')}</span>`); } } });
+      const h3=$('detBody').querySelector('h3');
+      if(T.length) h3.insertAdjacentHTML('afterend', missingNames.length?`<div class="impact" style="background:rgba(255,201,61,.1);border-color:rgba(255,201,61,.4)">🛒 You need <b>${missingNames.length}</b>: ${missingNames.join(', ')} <button type="button" class="add-list" style="margin:8px 0 0;display:block" data-add="${missingNames.join('|')}">Add missing to shopping list</button></div>`:`<div class="impact">✅ You have everything to make this now.</div>`);
+      const acts=$('detBody').querySelector('.cam-actions'); acts.insertAdjacentHTML('afterbegin',`<button type="button" id="startCook" style="flex-basis:100%;background:linear-gradient(135deg,var(--lime),var(--green))!important;color:#0b0620">👩‍🍳 Start cooking (${(STEPS[cur.name]||[]).length} steps)</button>`);
+    };
+    // step-by-step cook mode with timers
+    let step=0, tmr=null, tLeft=0, wake=null;
+    function mins(txt){ const m=txt.match(/(\d+)\s*minute/); return m?+m[1]:0; }
+    function renderCook(){ const S=STEPS[cur.name]||[], txt=S[step]||'', m=mins(txt);
+      $('cook').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div class="stepno">Step ${step+1} of ${S.length}</div><b>${cur.emoji} ${cur.name} · ${servings} serving${servings>1?'s':''}</b></div><button type="button" class="ghost" id="cookX" aria-label="Exit">✕</button></div>
+        <div class="dots">${S.map((_,i)=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div>
+        ${step===0?`<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted)">Ingredients for ${servings}</summary><ul class="ings">${cur.qty.map(([n,q,u])=>`<li><span>${n}</span><b>${fmtQ(q,u,servings)}</b></li>`).join('')}</ul></details>`:''}
+        <div class="steptxt">${esc(txt)}</div>
+        ${m?`<div class="timer" id="tDisp">${tmr?fmtT(tLeft):m+':00'}</div><button type="button" class="ghost" id="tBtn" style="margin-bottom:10px">${tmr?'⏸ Pause timer':'⏱ Start '+m+'-minute timer'}</button>`:''}
+        <div class="cam-actions" style="margin:0"><button type="button" class="ghost" id="cookBack" ${step?'':'disabled'}>← Back</button><button type="button" class="oops-btn" id="cookOops">😬 Oops</button><button type="button" id="cookNext">${step<S.length-1?'Next →':'🎉 Done'}</button></div>`; }
+    const fmtT=t=>Math.floor(t/60)+':'+String(t%60).padStart(2,'0');
+    function stopT(){ clearInterval(tmr); tmr=null; }
+    async function openCook(){ step=0; stopT(); $('detModal').classList.remove('open'); $('cook').classList.add('open'); renderCook(); document.querySelectorAll('.flow span').forEach((f,i)=>f.classList.toggle('on',i===3)); try{ wake=await navigator.wakeLock.request('screen'); }catch(e){} }
+    $('cook').addEventListener('click',e=>{ const id=e.target.id, S=STEPS[cur.name]||[];
+      if(id==='cookX'){ stopT(); $('cook').classList.remove('open'); wake&&wake.release&&wake.release(); }
+      if(id==='cookBack'&&step>0){ step--; stopT(); renderCook(); }
+      if(id==='cookNext'){ if(step<S.length-1){ step++; stopT(); renderCook(); } else { stopT(); $('cook').classList.remove('open'); burst(null,'good',30); toast('Chef’s kiss! Enjoy your '+cur.name+' 🎉'); openDetail(cur.name); } }
+      if(id==='cookOops'){ $('oopsModal').classList.add('open'); }
+      if(id==='tBtn'){ if(tmr){ stopT(); renderCook(); return; } if(!tLeft) tLeft=mins(S[step])*60; tmr=setInterval(()=>{ tLeft--; const d=$('tDisp'); if(d) d.textContent=fmtT(tLeft);
+          if(tLeft<=0){ stopT(); tLeft=0; navigator.vibrate&&navigator.vibrate([300,150,300]); burst(null,'good',20); toast('⏰ Time’s up! Check your food.'); renderCook(); } },1000); renderCook(); }
+    });
+    document.addEventListener('click',e=>{ if(e.target.id==='startCook'){ tLeft=0; openCook(); } });
+    // oops modal must sit above cook mode
+    $('oopsModal').style.zIndex=90;
+    // re-run matching whenever scanned chips change the input
+    input.addEventListener('input',()=>{ clearTimeout(window._ft); window._ft=setTimeout(()=>findRecipes(input.value),500); });
   </script>
 </body>
 </html>
