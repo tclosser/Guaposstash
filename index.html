@@ -215,6 +215,11 @@
     textarea { width:100%; min-height:70px; background:rgba(255,255,255,.08); color:#fff; border:1.5px solid var(--line); border-radius:14px; padding:12px; font:inherit; resize:vertical; }
     .rev { border-bottom:1px solid var(--line); padding:10px 0; font-size:.9rem; } .rev .who { color:var(--muted); font-size:.78rem; }
     .tweak { background:rgba(139,92,255,.16); border:1px solid rgba(139,92,255,.45); border-radius:14px; padding:12px; margin-bottom:12px; font-size:.9rem; }
+    .drinks { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 12px; }
+    .drink { text-align:left; background:linear-gradient(135deg,rgba(255,61,139,.18),rgba(139,92,255,.18))!important; border:1px solid var(--line)!important; box-shadow:none!important; padding:12px; border-radius:16px; color:#fff; }
+    .drink.moc { background:linear-gradient(135deg,rgba(30,227,161,.16),rgba(18,179,214,.16))!important; }
+    .drink .de { font-size:1.8rem; display:block; } .drink b { display:block; font-size:.92rem; } .drink small { color:var(--muted); font-weight:500; font-size:.74rem; }
+    .drink:hover .de { animation:wiggle .5s; }
   </style>
 </head>
 <body>
@@ -290,6 +295,7 @@
   <div class="modal" id="prepModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="prepBody"></div></div>
   <div class="cook" id="cook" role="dialog" aria-modal="true"></div>
   <div class="modal" id="revModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="revBody"></div></div>
+  <div class="modal" id="drinkModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="drinkBody"></div></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
@@ -930,6 +936,55 @@
     renderGoals=function(){ _rg3(); const mine=REV.filter(r=>r.mine).slice().reverse(); if(!mine.length) return;
       $('goalBody').insertAdjacentHTML('beforeend',`<h3 style="margin:16px 0 6px">👩‍🍳 My cook history</h3>${mine.slice(0,10).map(r=>`<div class="log-item"><span>${YUM[r.yum-1][0]} ${esc(r.dish)}${r.tweak?` <small>· ✏️ ${esc(r.tweak.slice(0,40))}</small>`:''}</span><span>${new Date(r.t).toLocaleDateString()}</span></div>`).join('')}`); };
     render(recipes);
+
+    // ---- Drink pairings: cocktails + mocktails ----
+    // ing: [name, amount]; alc:true = contains alcohol
+    const DRINKS={
+      margarita:{n:'Classic Margarita',e:'🍸',alc:true,why:'Lime and salt cut through rich, cheesy, spicy food.',ing:[['tequila (blanco)','2 oz'],['lime juice','1 oz'],['orange liqueur','¾ oz'],['agave syrup','¼ oz'],['salt','for the rim'],['ice','']],steps:['Rub a lime wedge on the rim and dip it in salt.','Add tequila, lime, orange liqueur, and agave to a shaker with ice.','Shake hard for 15 seconds.','Strain into the glass over fresh ice. Garnish with lime.'],cal:200},
+      paloma:{n:'Paloma',e:'🍹',alc:true,why:'Bright grapefruit fizz keeps things light.',ing:[['tequila','2 oz'],['grapefruit soda','4 oz'],['lime juice','½ oz'],['salt','pinch'],['ice','']],steps:['Fill a tall glass with ice.','Add tequila, lime juice, and a pinch of salt.','Top with grapefruit soda and stir gently.'],cal:180},
+      aperol:{n:'Aperol Spritz',e:'🥂',alc:true,why:'Bitter-orange bubbles love tomato, garlic, and cheese.',ing:[['prosecco','3 oz'],['Aperol','2 oz'],['club soda','1 oz'],['orange slice',''],['ice','']],steps:['Fill a wine glass with ice.','Pour in the prosecco, then the Aperol.','Top with club soda and garnish with an orange slice.'],cal:160},
+      mimosa:{n:'Mimosa',e:'🥂',alc:true,why:'The classic brunch partner for eggs and toast.',ing:[['sparkling wine','4 oz'],['orange juice','2 oz']],steps:['Pour chilled orange juice into a flute.','Slowly top with sparkling wine.'],cal:120},
+      highball:{n:'Ginger Whiskey Highball',e:'🥃',alc:true,why:'Ginger and bubbles match savory, soy, and garlic flavors.',ing:[['whiskey','1½ oz'],['ginger ale','4 oz'],['lemon wedge',''],['ice','']],steps:['Fill a tall glass with ice.','Add whiskey and top with ginger ale.','Squeeze in the lemon wedge and stir once.'],cal:170},
+      lychee:{n:'Lychee Lime Sparkler',e:'🍸',alc:true,why:'Floral and crisp, great with stir-fries and fried rice.',ing:[['vodka','1½ oz'],['lychee juice (or syrup from can)','1 oz'],['lime juice','½ oz'],['club soda','2 oz'],['ice','']],steps:['Shake vodka, lychee, and lime with ice.','Strain into a glass with ice.','Top with club soda.'],cal:150},
+      sangria:{n:'Quick White Sangria',e:'🍷',alc:true,why:'Fruity and cold — made for fruit salad and sunny days.',ing:[['white wine','4 oz'],['orange juice','1 oz'],['chopped fruit','¼ cup'],['sparkling water','2 oz'],['ice','']],steps:['Add chopped fruit to a glass.','Pour in white wine and orange juice; stir.','Add ice and top with sparkling water.'],cal:140},
+      oldfash:{n:'Maple Old Fashioned',e:'🥃',alc:true,why:'Warm, cozy, and bold enough for a loaded potato.',ing:[['bourbon','2 oz'],['maple syrup','1 tsp'],['bitters','2 dashes'],['orange peel',''],['large ice cube','']],steps:['Stir bourbon, maple, and bitters with ice for 20 seconds.','Strain over a large ice cube.','Twist the orange peel over the glass and drop it in.'],cal:160},
+      // mocktails
+      virginmarg:{n:'Sparkling Lime Nojito',e:'🍋',alc:false,why:'All the zing of a margarita, no alcohol.',ing:[['lime juice','1 oz'],['agave or honey','½ oz'],['mint leaves','6'],['sparkling water','5 oz'],['ice','']],steps:['Muddle mint with lime and agave in a glass.','Fill with ice.','Top with sparkling water and stir.'],cal:45},
+      horchata:{n:'Iced Horchata-Style Milk',e:'🥛',alc:false,why:'Creamy cinnamon cools down spicy food.',ing:[['milk (or oat milk)','1 cup'],['cinnamon','¼ tsp'],['vanilla','¼ tsp'],['honey or sugar','1 tbsp'],['ice','']],steps:['Whisk milk, cinnamon, vanilla, and honey until the honey dissolves.','Pour over ice and dust with more cinnamon.'],cal:170},
+      basilsoda:{n:'Tomato-Friendly Basil Lemonade',e:'🌿',alc:false,why:'Herby and tart — tastes great with pasta and garlic.',ing:[['lemon juice','1 oz'],['honey','½ oz'],['basil leaves','4'],['sparkling water','5 oz'],['ice','']],steps:['Muddle basil with honey and lemon.','Add ice and top with sparkling water.','Stir and garnish with a basil leaf.'],cal:50},
+      oj:{n:'Orange Ginger Fizz',e:'🍊',alc:false,why:'Brunch-bright without the bubbly wine.',ing:[['orange juice','3 oz'],['ginger ale or ginger beer','3 oz'],['ice','']],steps:['Fill a glass with ice.','Add orange juice and top with ginger ale.'],cal:90},
+      gingertea:{n:'Iced Ginger Green Tea',e:'🍵',alc:false,why:'Clean and refreshing next to soy and sesame.',ing:[['green tea (brewed, cooled)','1 cup'],['fresh ginger slices','3'],['honey','1 tsp'],['lime wedge',''],['ice','']],steps:['Brew green tea with the ginger slices for 3 minutes; stir in honey.','Cool, then pour over ice.','Squeeze in the lime.'],cal:25},
+      berry:{n:'Berry Mint Cooler',e:'🍓',alc:false,why:'Fruity and light for fresh dishes.',ing:[['berries','¼ cup'],['mint leaves','5'],['lime juice','½ oz'],['sparkling water','5 oz'],['ice','']],steps:['Muddle berries, mint, and lime in a glass.','Fill with ice and top with sparkling water.'],cal:35},
+      cider:{n:'Hot Apple Cider',e:'🍎',alc:false,why:'Cozy and sweet next to hearty, cheesy food.',ing:[['apple cider','1 cup'],['cinnamon stick','1'],['orange slice','']],steps:['Warm cider with the cinnamon stick for 5 minutes (don’t boil).','Pour into a mug and add an orange slice.'],cal:120}
+    };
+    const PAIR={
+      'Chicken & Rice Skillet':['highball','gingertea','aperol'],'Pantry Pasta':['aperol','basilsoda'],'Loaded Veggie Omelet':['mimosa','oj'],
+      'Crispy Fried Rice':['lychee','gingertea','highball'],'Black Bean Tacos':['margarita','paloma','virginmarg','horchata'],'Garlic Butter Toast':['aperol','basilsoda'],
+      'Veggie Stir-Fry':['lychee','gingertea'],'Fresh Fruit Salad':['sangria','berry'],'Loaded Baked Potato':['oldfash','cider'],'Avocado Toast':['mimosa','paloma','oj','berry']
+    };
+    let showAlc = localStorage.getItem('wc_alc')!=='0';
+    function openDrink(key){ const d=DRINKS[key]; if(!d) return;
+      $('drinkBody').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2>${d.e} ${d.n}</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <div class="nut-badges" style="margin:6px 0 10px">${d.alc?'<span class="nb" style="background:rgba(255,61,139,.2)">🍸 Cocktail · 21+</span>':'<span class="nb p">🌱 Mocktail · alcohol-free</span>'}<span class="nb">🔥 ~${d.cal} cal</span><span class="nb">Makes 1</span></div>
+        <p style="color:var(--muted);margin:0 0 12px">${d.why}</p>
+        <h3 style="margin:0 0 4px">You’ll need</h3><ul class="ings">${d.ing.map(([n,a])=>`<li class="${hasTerm(n.split(' (')[0],terms())?'have':''}"><span>${n}</span><b>${a}</b></li>`).join('')}</ul>
+        <h3 style="margin:10px 0 6px">How to make it</h3><ol style="padding-left:20px;margin:0 0 12px;line-height:1.6">${d.steps.map(x=>`<li>${x}</li>`).join('')}</ol>
+        <div class="cam-actions"><button type="button" id="drinkList" data-k="${key}">🛒 Add to shopping list</button><button type="button" class="ghost" id="drinkLog" data-k="${key}">✅ Log it</button></div>
+        ${d.alc?'<p style="color:var(--muted);font-size:.72rem;margin:10px 0 0">Please drink responsibly. Must be of legal drinking age. Never drink and drive.</p>':''}`;
+      $('drinkModal').classList.add('open'); }
+    $('drinkModal').addEventListener('click',e=>{ const b=e.target.closest('button'); if(e.target.id==='drinkModal'||(b&&b.dataset.close)){ $('drinkModal').classList.remove('open'); return; } if(!b) return; const d=DRINKS[b.dataset.k];
+      if(b.id==='drinkList'){ d.ing.filter(([n])=>!['ice','large ice cube'].includes(n)).forEach(([n,a])=>addGoalItem(n.split(' (')[0],a,'for '+d.n)); burst(b,'add'); bump($('listBtn')); toast(d.e+' Ingredients added 🛒'); }
+      if(b.id==='drinkLog'){ LOG.push({t:Date.now(),name:d.n,s:1,nut:{cal:d.cal,protein:0,carbs:Math.round(d.cal*(d.alc?.1:.25)/4*4)/4,fat:0,satfat:0,fiber:0,sugar:Math.round(d.cal*(d.alc?.1:.22)/4),sodium:d.ing.some(i=>i[0]==='salt')?300:10}}); saveG(); burst(b,'good'); toast('Logged '+d.n+' ✅'); }
+    });
+    const _rd4=renderDetail;
+    renderDetail=function(){ _rd4(); if(!cur) return; const keys=(PAIR[cur.name]||[]).filter(k=>showAlc||!DRINKS[k].alc); if(!keys.length&&showAlc) return;
+      const acts=$('detBody').querySelector('.cam-actions');
+      acts.insertAdjacentHTML('afterend',`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px"><h3 style="margin:0">🍹 Drinks to pair</h3><label style="font-size:.78rem;color:var(--muted);display:flex;gap:6px;align-items:center"><input type="checkbox" id="alcT" ${showAlc?'checked':''} style="width:16px;height:16px"> Show cocktails</label></div>
+        <div class="drinks">${keys.map(k=>{ const d=DRINKS[k]; return `<button type="button" class="drink ${d.alc?'':'moc'}" data-drink="${k}"><span class="de">${d.e}</span><b>${d.n}</b><small>${d.alc?'Cocktail':'Mocktail'} · ${d.why.split(/[.—]/)[0]}</small></button>`; }).join('')}</div>`); };
+    document.addEventListener('click',e=>{ const b=e.target.closest('[data-drink]'); if(b){ openDrink(b.dataset.drink); burst(b,'good',8); } });
+    document.addEventListener('change',e=>{ if(e.target.id==='alcT'){ showAlc=e.target.checked; localStorage.setItem('wc_alc',showAlc?'1':'0'); renderDetail(); } });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('drinkModal').classList.remove('open'); });
+    $('drinkModal').style.zIndex=70;
   </script>
 </body>
 </html>
