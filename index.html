@@ -262,6 +262,7 @@
   </div>
   <div class="modal" id="detModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="detBody"></div></div>
   <div class="modal" id="goalModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="goalBody"></div></div>
+  <div class="modal" id="prepModal" role="dialog" aria-modal="true"><div class="oops-sheet" id="prepBody"></div></div>
   <div id="toast" role="status"></div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
@@ -590,6 +591,7 @@
         <h3 style="margin:6px 0 6px;font-size:1rem">Targets for ${periodLabel()}</h3>
         <div class="gin">${NK.map(([k,l,u])=>`<label>${l}${u?' ('+u+')':''} <a href="#" data-mode="${k}" style="color:${isMax(k)?'var(--sun)':'var(--green)'};text-decoration:none;font-weight:700">${isMax(k)?'max ▾':'min ▴'}</a><input type="number" min="0" inputmode="numeric" data-goal="${k}" value="${G.targets[k]??''}" placeholder="—"></label>`).join('')}</div>
         <p style="color:var(--muted);font-size:.75rem;margin:6px 0 0">Tap min/max to switch between a goal to reach and a limit to stay under. Talk to your doctor or dietitian about medical diets.</p>
+        <button type="button" id="openPrep" style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--sun),var(--accent))!important">🥡 Plan my meal prep</button>
         <h3 style="margin:18px 0 8px">Progress ${periodLabel()}</h3>
         ${activeGoals().map(([k,l,u])=>{ const g=+G.targets[k], v=Math.round(t[k]), pc=Math.min(100,v/g*100), mx=isMax(k); return `<div class="goal-row"><div style="display:flex;justify-content:space-between"><b>${l} <small>${mx?'limit':'goal'}</small></b><span>${v} / ${g}${u}</span></div><div class="bar"><i class="${mx&&v>g?'over':''}" style="width:${pc}%"></i></div><small>${mx?(v>g?`⚠ Over limit by ${v-g}${u}`:`${g-v}${u} left`):(v>=g?'Goal met ✓':`${g-v}${u} to go`)}</small></div>`; }).join('')||'<p style="color:var(--muted)">Add a goal above to start tracking.</p>'}
         ${suggest()?`<div class="impact">${suggest()}</div>`:''}
@@ -617,6 +619,56 @@
     render=function(items){ const ok=dietOK(items); baseRender(ok);
       if(G.diets.length){ title.textContent=title.textContent.replace(/ · .*$/,'')+' · '+G.diets.map(d=>DIETS[d][1]).join(', '); if(!ok.length) results.innerHTML='<div class="empty">No recipes match your eating style yet. Change it under 🎯 Goals.</div>'; } };
     render(recipes);
+
+    // ---- Meal prep planner ----
+    let P=JSON.parse(localStorage.getItem('wc_prep')||'{"days":5,"meals":2,"share":100}'), PLAN=null;
+    const perDay=k=>{ const g=+G.targets[k]; return g? g/mult() : 0; };
+    function buildPlan(){ const slots=P.days*P.meals, share=P.share/100, pool=dietOK(recipes).filter(r=>r.nut);
+      if(!pool.length) return null;
+      const T={}; activeGoals().forEach(([k])=>T[k]=perDay(k)*P.days*share);
+      const got={}; NK.forEach(([k])=>got[k]=0); const count={}, picks=[];
+      for(let i=0;i<slots;i++){ const left=slots-i; let best=null,bs=-1e9;
+        pool.forEach(r=>{ let sc=0;
+          activeGoals().forEach(([k])=>{ const need=(T[k]-got[k])/left, v=r.nut[k], g=T[k]/slots||1;
+            if(isMax(k)) sc-= Math.max(0,got[k]+v-T[k])/g*3;           // penalize busting limits
+            else sc-= Math.abs(need-v)/g; });                            // aim at per-meal need
+          if(!activeGoals().length) sc=0;
+          sc-= (count[r.name]||0)*0.35;                                   // variety
+          if(sc>bs){bs=sc;best=r;} });
+        picks.push(best); count[best.name]=(count[best.name]||0)+1; NK.forEach(([k])=>got[k]+=best.nut[k]||0); }
+      const dishes=Object.entries(count).map(([n,c])=>({r:recipes.find(x=>x.name===n),s:c})).sort((a,b)=>b.s-a.s);
+      const days=[...Array(P.days)].map((_,d)=>picks.slice(d*P.meals,(d+1)*P.meals));
+      return {dishes,days,got,T}; }
+    function combinedIngredients(plan){ const m={}; plan.dishes.forEach(({r,s})=>r.qty.forEach(([n,q,u])=>{ const k=n+'|'+u; m[k]=(m[k]||0)+q*s; }));
+      return Object.entries(m).map(([k,q])=>{ const [n,u]=k.split('|'); return [n,q,u]; }).sort((a,b)=>a[0].localeCompare(b[0])); }
+    function renderPrep(){ PLAN=buildPlan(); const D=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const head=`<div style="display:flex;justify-content:space-between;align-items:center"><h2>🥡 Meal prep plan</h2><button type="button" class="ghost" data-close aria-label="Close">✕</button></div>
+        <p style="color:var(--muted);margin:4px 0 12px">Tell us how much you're prepping. We'll pick dishes and servings to hit your 🎯 goals.</p>
+        <div class="gin"><label>Days to prep<input type="number" min="1" max="14" data-p="days" value="${P.days}"></label><label>Meals per day<input type="number" min="1" max="6" data-p="meals" value="${P.meals}"></label></div>
+        <label style="display:block;font-size:.8rem;color:var(--muted);margin-top:8px">Share of your daily goals these meals should cover: <b style="color:#fff">${P.share}%</b><input type="range" min="25" max="100" step="5" data-p="share" value="${P.share}" style="width:100%;padding:0;border:0!important;background:none!important"></label>`;
+      if(!PLAN){ $('prepBody').innerHTML=head+'<div class="empty" style="margin-top:12px">No recipes match your eating style.</div>'; return; }
+      const cmp=activeGoals().map(([k,l,u])=>{ const g=Math.round(PLAN.T[k]), v=Math.round(PLAN.got[k]), pc=Math.min(100,v/g*100), mx=isMax(k), ok=mx? v<=g : v>=g*0.95;
+        return `<div class="goal-row"><div style="display:flex;justify-content:space-between"><b>${l} <small>${mx?'limit':'goal'}</small></b><span>${v} / ${g}${u} ${ok?'✓':'⚠'}</span></div><div class="bar"><i class="${mx&&v>g?'over':''}" style="width:${pc}%"></i></div></div>`; }).join('')||'<p style="color:var(--muted)">No goals set — this is a balanced variety plan. Set goals in 🎯 Goals for a targeted plan.</p>';
+      const gap=activeGoals().filter(([k])=>!isMax(k)&&PLAN.got[k]<PLAN.T[k]*0.95).map(([k,l,u])=>`${Math.round(PLAN.T[k]-PLAN.got[k])}${u} ${l.toLowerCase()}`);
+      $('prepBody').innerHTML=head+`
+        <h3 style="margin:16px 0 8px">What to cook</h3>
+        <ul class="ings">${PLAN.dishes.map(({r,s})=>`<li><span>${r.emoji} <a href="#" data-open="${r.name}" style="color:#fff">${r.name}</a></span><b>${s} serving${s>1?'s':''}</b></li>`).join('')}</ul>
+        <h3 style="margin:10px 0 8px">Totals for ${P.days} days vs. goal</h3>${cmp}
+        ${gap.length?`<div class="impact">Still short about <b>${gap.join(', ')}</b>. Add a snack (eggs, Greek yogurt, protein shake) or raise meals per day.</div>`:''}
+        <h3 style="margin:14px 0 8px">Day by day</h3>
+        ${PLAN.days.map((m,i)=>`<div class="log-item"><span><b style="color:#fff">${D[i%7]}</b> · ${m.map(r=>r.name).join(' + ')}</span><span>${m.reduce((a,r)=>a+r.nut.cal,0)} cal · ${m.reduce((a,r)=>a+r.nut.protein,0)}g</span></div>`).join('')}
+        <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Combined ingredients (${combinedIngredients(PLAN).length})</summary><ul class="ings" style="margin-top:8px">${combinedIngredients(PLAN).map(([n,q,u])=>`<li><span>${n}</span><b>${fmtQ(q,u,1)}</b></li>`).join('')}</ul></details>
+        <div class="cam-actions"><button type="button" id="prepList">🛒 Add all to shopping list</button><button type="button" class="ghost" id="prepLog">✅ Log whole plan</button></div>
+        <p style="color:var(--muted);font-size:.72rem;margin:8px 0 0">Nutrition is estimated. Cooked food keeps 3–4 days in the fridge; freeze meals for later in the week.</p>`; }
+    $('prepModal').addEventListener('input',e=>{ const k=e.target.dataset.p; if(!k) return; P[k]=Math.max(1,+e.target.value||1); localStorage.setItem('wc_prep',JSON.stringify(P)); clearTimeout(window._pt); window._pt=setTimeout(()=>{ const f=document.activeElement&&document.activeElement.dataset.p; renderPrep(); if(f){ const el=$('prepBody').querySelector(`[data-p="${f}"]`); el&&el.focus(); } }, k==='share'?60:400); });
+    $('prepModal').addEventListener('click',e=>{ const b=e.target;
+      if(b.id==='prepModal'||b.closest('[data-close]')) $('prepModal').classList.remove('open');
+      if(b.dataset.open){ e.preventDefault(); $('prepModal').classList.remove('open'); openDetail(b.dataset.open); }
+      if(b.id==='prepList'&&PLAN){ addItems(combinedIngredients(PLAN).map(([n,q,u])=>n)); burst(b,'add'); bump($('listBtn')); toast('Meal prep ingredients added 🛒'); }
+      if(b.id==='prepLog'&&PLAN){ const now=Date.now(); PLAN.dishes.forEach(({r,s})=>LOG.push({t:now,name:r.name+' (prep)',s,nut:r.nut})); saveG(); burst(b,'good',20); toast('Meal prep logged ✅'); }
+    });
+    document.addEventListener('click',e=>{ if(e.target.id==='openPrep'){ $('goalModal').classList.remove('open'); renderPrep(); $('prepModal').classList.add('open'); burst(e.target,'good',10); } });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('prepModal').classList.remove('open'); });
   </script>
 </body>
 </html>
