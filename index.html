@@ -55,13 +55,29 @@
     .oops-grid button:hover { background:#fbe5da; }
     #oopsAnswer { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; line-height:1.55; display:none; }
     #oopsAnswer.show { display:block; } #oopsAnswer ul { padding-left:20px; margin:8px 0 0; } #oopsAnswer .warn { color:#9b2c2c; font-weight:700; }
+    .list-btn { background:var(--green); } .list-btn:hover { background:#255a49; }
+    .count { background:#fff; color:var(--green); border-radius:999px; padding:1px 7px; font-size:.78rem; margin-left:4px; }
+    .add-list { margin-top:10px; background:#fff; color:var(--green); border:1px solid #bcd9cc; padding:8px 11px; font-size:.84rem; }
+    .add-list:hover { background:#e6f1eb; }
+    .miss { font-size:.82rem; color:var(--accent-dark); margin:0 0 4px; }
+    #listModal { position:fixed; inset:0; background:rgba(36,32,29,.55); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+    #listModal.open { display:flex; } @media (min-width:721px){ #listModal { align-items:center; } }
+    .li { display:flex; gap:10px; align-items:flex-start; padding:11px 0; border-bottom:1px solid var(--line); }
+    .li input[type=checkbox] { flex:none; width:20px; height:20px; margin-top:2px; accent-color:var(--green); }
+    .li .nm { font-weight:700; } .li.done .nm { text-decoration:line-through; color:var(--muted); }
+    .brand-pick { font-size:.82rem; color:var(--muted); margin-top:3px; }
+    .brand-pick select { font:inherit; font-size:.82rem; border:1px solid var(--line); border-radius:8px; padding:3px 5px; max-width:100%; }
+    .spons { font-size:.68rem; font-weight:800; color:#8a6d1f; background:#fff3cf; border-radius:6px; padding:1px 5px; margin-left:4px; }
+    .x { background:none; color:var(--muted); padding:2px 6px; margin-left:auto; } .x:hover { background:#f6ece3; transform:none; }
+    .stores { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+    .stores a { display:block; text-align:center; text-decoration:none; font-weight:750; border-radius:12px; padding:13px; color:#fff; }
     @media (max-width:720px) { header { padding-top:19px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { min-height:130px; } .hero-art::after { font-size:76px; } #results { grid-template-columns:1fr; } form { flex-direction:column; } }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">What’s <span>Cooking?</span></div>
-    <div style="display:flex;gap:8px"><button type="button" class="oops-btn" id="oopsBtn">😬 Oops!</button><button type="button" id="surprise">Surprise me</button></div>
+    <div style="display:flex;gap:8px"><button type="button" class="oops-btn" id="oopsBtn">😬 Oops!</button><button type="button" class="list-btn" id="listBtn">🛒 List<span class="count" id="listCount">0</span></button><button type="button" id="surprise">Surprise me</button></div>
   </header>
   <main>
     <section class="hero">
@@ -109,6 +125,22 @@
       <div id="oopsAnswer" aria-live="polite"></div>
     </div>
   </div>
+  <div id="listModal" role="dialog" aria-modal="true" aria-labelledby="listTitle">
+    <div class="oops-sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="listTitle">Shopping list</h2><button type="button" class="ghost" id="listClose" aria-label="Close">✕</button></div>
+      <form id="listForm" style="max-width:none;margin:12px 0 4px"><input id="listText" placeholder="Add an item, e.g. crackers" aria-label="Add item"><button type="submit">Add</button></form>
+      <div id="listItems"></div>
+      <p style="color:var(--muted);font-size:.85rem;margin:14px 0 0">Send unchecked items to your store:</p>
+      <div class="stores">
+        <a href="#" data-store="instacart" style="background:#0aad0a">Instacart</a>
+        <a href="#" data-store="amazon" style="background:#232f3e">Amazon</a>
+        <a href="#" data-store="walmart" style="background:#0071dc">Walmart</a>
+        <a href="#" data-store="doordash" style="background:#eb1700">DoorDash</a>
+      </div>
+      <div class="cam-actions"><button type="button" class="ghost" id="listCopy">Copy list</button><button type="button" class="ghost" id="listShare">Share</button><button type="button" class="ghost" id="listClear">Clear checked</button></div>
+      <p style="color:var(--muted);font-size:.75rem;margin:12px 0 0" id="discl">Some brand suggestions are sponsored and marked. We may earn a commission from store links.</p>
+    </div>
+  </div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
     const recipes = [
@@ -127,12 +159,12 @@
     const title = document.getElementById('resultTitle');
     const input = document.getElementById('ingredients');
     function render(items) {
-      results.innerHTML = items.length ? items.map(r => `<article class="recipe"><div class="emoji">${r.emoji}</div><h3>${r.name}</h3><p>${r.text}</p><span class="tag">${r.tag}</span></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
+      results.innerHTML = items.length ? items.map(r => `<article class="recipe"><div class="emoji">${r.emoji}</div><h3>${r.name}</h3><p>${r.text}</p>${r.missing&&r.missing.length?`<p class="miss">Need: ${r.missing.join(', ')}</p>`:''}<span class="tag">${r.tag}</span><button type="button" class="add-list" data-add="${(r.missing||r.ingredients).join('|')}">🛒 Add ${r.missing?'missing':'ingredients'} to list</button></article>`).join('') : '<div class="empty">No exact match yet. Try another ingredient, or search a shorter list.</div>';
     }
     function findRecipes(query) {
       const terms = query.toLowerCase().split(',').map(x => x.trim()).filter(Boolean);
       if (!terms.length) { title.textContent = 'Popular ideas'; render(recipes); return; }
-      const ranked = recipes.map(r => ({...r, score:r.ingredients.filter(i => terms.some(t => i.includes(t) || t.includes(i))).length})).filter(r => r.score > 0).sort((a,b) => b.score-a.score);
+      const ranked = recipes.map(r => ({...r, score:r.ingredients.filter(i => terms.some(t => i.includes(t) || t.includes(i))).length})).map(r => ({...r, missing:r.ingredients.filter(i => !terms.some(t => i.includes(t) || t.includes(i)))})).filter(r => r.score > 0).sort((a,b) => b.score-a.score);
       title.textContent = `Ideas for: ${terms.join(', ')}`;
       render(ranked);
     }
@@ -274,6 +306,59 @@
           a.innerHTML=`<strong>Here’s how to fix it</strong><ul>${(fixes.length?fixes:lines).map(l=>`<li>${esc(l)}</li>`).join('')}</ul>${nt?`<p style="color:var(--muted);margin:10px 0 0">${esc(nt.replace(/\*/g,''))}</p>`:''}`; return;
         } catch(err){ /* fall through to built-in tips */ } }
       const m=localMatch(q); if(m) showOops(m); else { a.classList.add('show'); a.innerHTML='I don’t have a tip for that yet. Try one of the buttons above'+(aiCfg().key?'.':', or add an AI key (Scan → ⚙ AI) for help with any problem.'); } });
+
+    // ---- Shopping list + brand recommendations + store checkout (revenue) ----
+    // EDIT THIS: your affiliate/partner IDs. Leave blank until approved.
+    const PARTNERS = { amazonTag:'', walmartImpactId:'', instacartAffiliate:'' };
+    // EDIT THIS: brand suggestions per ingredient. Set sponsored:true only for paid placements (required disclosure).
+    const BRANDS = {
+      pasta:[{b:'Barilla',q:'Barilla spaghetti'},{b:'De Cecco',q:'De Cecco pasta'},{b:'Banza (chickpea)',q:'Banza pasta'}],
+      rice:[{b:"Mahatma",q:'Mahatma long grain rice'},{b:"Uncle Ben's / Ben's Original",q:"Ben's Original rice"}],
+      cheese:[{b:'Tillamook',q:'Tillamook shredded cheese'},{b:'Kraft',q:'Kraft shredded cheese'}],
+      tomato:[{b:"Hunt's",q:"Hunt's diced tomatoes"},{b:'Cento San Marzano',q:'Cento San Marzano tomatoes'}],
+      beans:[{b:'Bush’s',q:"Bush's black beans"},{b:'Goya',q:'Goya black beans'}],
+      tortilla:[{b:'Mission',q:'Mission flour tortillas'},{b:'Guerrero',q:'Guerrero tortillas'}],
+      bread:[{b:"Dave's Killer Bread",q:"Dave's Killer Bread"},{b:'Pepperidge Farm',q:'Pepperidge Farm bread'}],
+      butter:[{b:'Kerrygold',q:'Kerrygold butter'},{b:"Land O'Lakes",q:"Land O Lakes butter"}],
+      eggs:[{b:'Vital Farms',q:'Vital Farms eggs'},{b:"Eggland's Best",q:"Eggland's Best eggs"}],
+      crackers:[{b:'Ritz',q:'Ritz crackers'},{b:'Triscuit',q:'Triscuit crackers'},{b:'Carr’s',q:"Carr's water crackers"}],
+      broth:[{b:'Swanson',q:'Swanson chicken broth'},{b:'Better Than Bouillon',q:'Better Than Bouillon'}],
+      cream:[{b:'Horizon Organic',q:'Horizon heavy cream'}], milk:[{b:'Fairlife',q:'Fairlife milk'},{b:'Horizon Organic',q:'Horizon milk'}],
+      garlic:[{b:'Fresh (any)',q:'fresh garlic'},{b:'Spice World minced',q:'Spice World minced garlic'}]
+    };
+    let LIST = JSON.parse(localStorage.getItem('wc_list')||'[]');
+    const saveList = () => { localStorage.setItem('wc_list',JSON.stringify(LIST)); $('listCount').textContent=LIST.filter(i=>!i.done).length; };
+    const itemQuery = i => { const o=(BRANDS[i.name]||[])[i.brand]; return o ? o.q : i.name; };
+    function addItems(names){ names.forEach(n=>{ n=n.trim().toLowerCase(); if(n && !LIST.some(i=>i.name===n)) LIST.push({name:n,done:false,brand:BRANDS[n]?0:-1}); }); saveList(); }
+    function renderList(){
+      $('listItems').innerHTML = LIST.length ? LIST.map((i,x)=>{ const opts=BRANDS[i.name];
+        return `<div class="li ${i.done?'done':''}"><input type="checkbox" data-t="${x}" ${i.done?'checked':''} aria-label="Have ${esc(i.name)}"><div style="flex:1;min-width:0"><div class="nm">${esc(i.name)}</div>${opts?`<div class="brand-pick">Brand: <select data-b="${x}"><option value="-1">Any brand</option>${opts.map((o,k)=>`<option value="${k}" ${i.brand==k?'selected':''}>${esc(o.b)}${o.sponsored?' (Sponsored)':''}</option>`).join('')}</select>${opts[i.brand]&&opts[i.brand].sponsored?'<span class="spons">Sponsored</span>':''}</div>`:''}</div><button type="button" class="x" data-r="${x}" aria-label="Remove">✕</button></div>`; }).join('')
+        : '<div class="empty" style="margin-top:10px">Your list is empty. Tap “Add missing to list” on a recipe.</div>';
+    }
+    $('listItems').addEventListener('change',e=>{ const t=e.target; if(t.dataset.t!==undefined){ LIST[t.dataset.t].done=t.checked; } if(t.dataset.b!==undefined){ LIST[t.dataset.b].brand=+t.value; } saveList(); renderList(); });
+    $('listItems').addEventListener('click',e=>{ const r=e.target.dataset.r; if(r!==undefined){ LIST.splice(r,1); saveList(); renderList(); } });
+    $('listForm').addEventListener('submit',e=>{ e.preventDefault(); addItems($('listText').value.split(',')); $('listText').value=''; renderList(); });
+    results.addEventListener('click',e=>{ const b=e.target.closest('[data-add]'); if(!b) return; addItems(b.dataset.add.split('|')); b.textContent='✓ Added to list'; });
+    $('listBtn').addEventListener('click',()=>{ renderList(); $('listModal').classList.add('open'); });
+    $('listClose').addEventListener('click',()=>$('listModal').classList.remove('open'));
+    $('listModal').addEventListener('click',e=>{ if(e.target.id==='listModal') $('listModal').classList.remove('open'); });
+    $('listClear').addEventListener('click',()=>{ LIST=LIST.filter(i=>!i.done); saveList(); renderList(); });
+    const listText = () => LIST.filter(i=>!i.done).map(i=>'• '+itemQuery(i)).join('\n');
+    $('listCopy').addEventListener('click',async()=>{ try{ await navigator.clipboard.writeText(listText()); $('listCopy').textContent='Copied ✓'; }catch(e){} });
+    $('listShare').addEventListener('click',()=>{ const t="What's Cooking shopping list:\n"+listText(); if(navigator.share) navigator.share({text:t}); else navigator.clipboard.writeText(t); });
+    function storeUrl(store,q){ const e=encodeURIComponent(q);
+      if(store==='amazon') return 'https://www.amazon.com/s?k='+e+'&i=amazonfresh'+(PARTNERS.amazonTag?'&tag='+PARTNERS.amazonTag:'');
+      if(store==='walmart') return 'https://www.walmart.com/search?q='+e;
+      if(store==='doordash') return 'https://www.doordash.com/search/store/'+e;
+      return 'https://www.instacart.com/store/s?k='+e; }
+    document.querySelectorAll('[data-store]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault();
+      const items=LIST.filter(i=>!i.done); if(!items.length) return;
+      // Opens the store with the first item; the rest are copied so the user can paste/search quickly.
+      navigator.clipboard && navigator.clipboard.writeText(listText()).catch(()=>{});
+      window.open(storeUrl(a.dataset.store,itemQuery(items[0])),'_blank','noopener');
+      $('discl').textContent='Opened '+a.textContent+' with “'+itemQuery(items[0])+'”. Your full list was copied — search each item to add it to your cart.';
+    }));
+    saveList();
   </script>
 </body>
 </html>
