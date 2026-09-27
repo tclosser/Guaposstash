@@ -652,8 +652,14 @@
           sc-= (count[r.name]||0)*0.35;                                   // variety
           if(sc>bs){bs=sc;best=r;} });
         picks.push(best); count[best.name]=(count[best.name]||0)+1; NK.forEach(([k])=>got[k]+=best.nut[k]||0); }
+      // top up: bigger portions until min goals are met without busting limits
+      const mins=activeGoals().filter(([k])=>!isMax(k)).map(([k])=>k), maxs=activeGoals().filter(([k])=>isMax(k)).map(([k])=>k);
+      for(let guard=0; guard<slots*3 && mins.some(k=>got[k]<T[k]*0.97); guard++){
+        const k=mins.find(k=>got[k]<T[k]*0.97);
+        const cand=pool.filter(r=>maxs.every(m=>got[m]+(r.nut[m]||0)<=T[m])).sort((a,b)=>b.nut[k]/b.nut.cal-a.nut[k]/a.nut.cal + ((count[a.name]||0)-(count[b.name]||0))*0.004)[0];
+        if(!cand) break; count[cand.name]=(count[cand.name]||0)+1; NK.forEach(([x])=>got[x]+=cand.nut[x]||0); }
       const dishes=Object.entries(count).map(([n,c])=>({r:recipes.find(x=>x.name===n),s:c})).sort((a,b)=>b.s-a.s);
-      const days=[...Array(P.days)].map((_,d)=>picks.slice(d*P.meals,(d+1)*P.meals));
+      const totalS=Object.values(count).reduce((a,b)=>a+b,0), por=totalS/slots; const days=[...Array(P.days)].map((_,d)=>picks.slice(d*P.meals,(d+1)*P.meals)); days.portion=por;
       return {dishes,days,got,T}; }
     function combinedIngredients(plan){ const m={}; plan.dishes.forEach(({r,s})=>r.qty.forEach(([n,q,u])=>{ const k=n+'|'+u; m[k]=(m[k]||0)+q*s; }));
       return Object.entries(m).map(([k,q])=>{ const [n,u]=k.split('|'); return [n,q,u]; }).sort((a,b)=>a[0].localeCompare(b[0])); }
@@ -671,7 +677,7 @@
         <ul class="ings">${PLAN.dishes.map(({r,s})=>`<li><span>${r.emoji} <a href="#" data-open="${r.name}" style="color:#fff">${r.name}</a></span><b>${s} serving${s>1?'s':''}</b></li>`).join('')}</ul>
         <h3 style="margin:10px 0 8px">Totals for ${P.days} days vs. goal</h3>${cmp}
         ${gap.length?`<div class="impact">Still short about <b>${gap.join(', ')}</b>. Add a snack (eggs, Greek yogurt, protein shake) or raise meals per day.</div>`:''}
-        <h3 style="margin:14px 0 8px">Day by day</h3>
+        <h3 style="margin:14px 0 8px">Day by day</h3>${PLAN.days.portion>1.15?`<p style="color:var(--muted);font-size:.85rem;margin:-4px 0 6px">To hit your goals, portions average about <b style="color:#fff">${PLAN.days.portion.toFixed(1)} servings per meal</b>.</p>`:''}
         ${PLAN.days.map((m,i)=>`<div class="log-item"><span><b style="color:#fff">${D[i%7]}</b> · ${m.map(r=>r.name).join(' + ')}</span><span>${m.reduce((a,r)=>a+r.nut.cal,0)} cal · ${m.reduce((a,r)=>a+r.nut.protein,0)}g</span></div>`).join('')}
         <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Combined ingredients (${combinedIngredients(PLAN).length})</summary><ul class="ings" style="margin-top:8px">${combinedIngredients(PLAN).map(([n,q,u])=>`<li><span>${n}</span><b>${fmtQ(q,u,1)}</b></li>`).join('')}</ul></details>
         <div class="cam-actions"><button type="button" id="prepList">🛒 Add all to shopping list</button><button type="button" class="ghost" id="prepLog">✅ Log whole plan</button></div>
