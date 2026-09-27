@@ -44,13 +44,24 @@
     #chips { display:flex; flex-wrap:wrap; gap:7px; }
     .chip { padding:7px 11px; border-radius:999px; background:#fbe5da; color:var(--accent-dark); font-weight:700; font-size:.85rem; cursor:pointer; border:1px solid #f3c9b5; }
     .chip.off { background:#fff; color:var(--muted); text-decoration:line-through; border-color:var(--line); }
+    .oops-btn { background:#c23b3b; } .oops-btn:hover { background:#9b2c2c; }
+    #oopsModal { position:fixed; inset:0; background:rgba(36,32,29,.55); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+    #oopsModal.open { display:flex; }
+    .oops-sheet { background:var(--paper); width:100%; max-width:640px; max-height:88vh; overflow:auto; border-radius:22px 22px 0 0; padding:22px; }
+    @media (min-width:721px){ #oopsModal { align-items:center; } .oops-sheet { border-radius:22px; } }
+    .oops-sheet h2 { margin:0 0 4px; letter-spacing:-.03em; }
+    .oops-grid { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0; }
+    .oops-grid button { background:#fff; color:var(--ink); border:1px solid var(--line); padding:9px 12px; font-weight:650; font-size:.88rem; }
+    .oops-grid button:hover { background:#fbe5da; }
+    #oopsAnswer { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; line-height:1.55; display:none; }
+    #oopsAnswer.show { display:block; } #oopsAnswer ul { padding-left:20px; margin:8px 0 0; } #oopsAnswer .warn { color:#9b2c2c; font-weight:700; }
     @media (max-width:720px) { header { padding-top:19px; } .hero { grid-template-columns:1fr; padding:25px; } .hero-art { min-height:130px; } .hero-art::after { font-size:76px; } #results { grid-template-columns:1fr; } form { flex-direction:column; } }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">What’s <span>Cooking?</span></div>
-    <button type="button" id="surprise">Surprise me</button>
+    <div style="display:flex;gap:8px"><button type="button" class="oops-btn" id="oopsBtn">😬 Oops!</button><button type="button" id="surprise">Surprise me</button></div>
   </header>
   <main>
     <section class="hero">
@@ -89,6 +100,15 @@
     <h2 class="section-title" id="resultTitle">Popular ideas</h2>
     <section id="results" aria-live="polite"></section>
   </main>
+  <div id="oopsModal" role="dialog" aria-modal="true" aria-labelledby="oopsTitle">
+    <div class="oops-sheet">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="oopsTitle">Oops — what happened?</h2><button type="button" class="ghost" id="oopsClose" aria-label="Close">✕</button></div>
+      <p style="color:var(--muted);margin:0">Don’t panic. Most kitchen mistakes can be fixed. Pick one or describe it.</p>
+      <div class="oops-grid" id="oopsGrid"></div>
+      <form id="oopsForm" style="max-width:none;margin-bottom:12px"><input id="oopsText" placeholder="e.g. my soup is way too salty" aria-label="Describe your mistake"><button type="submit">Help me</button></form>
+      <div id="oopsAnswer" aria-live="polite"></div>
+    </div>
+  </div>
   <footer>What’s Cooking · Your kitchen, your next meal.</footer>
   <script>
     const recipes = [
@@ -213,6 +233,47 @@
       } catch(e){ $('camStatus').textContent='AI error: '+e.message+' — falling back to on-device.'; delete $('camStatus').dataset.busy; return localIdentify(source); }
       delete $('camStatus').dataset.busy;
     };
+
+    // ---- Oops! cooking-mistake helper ----
+    const OOPS = [
+      {t:'Too salty', k:['salt','salty'], fix:['Add more unsalted base: water, stock, cream, canned tomato, or extra vegetables/beans.','Stir in a splash of acid (lemon, vinegar) and a pinch of sugar to balance.','Serve over plain rice, pasta, or potatoes to spread the salt out.','Dilute and make a bigger batch — freeze the extra.'], tip:'Salt in stages and taste as you go.'},
+      {t:'Burnt', k:['burn','burnt','burned','scorch','charred','smok'], fix:['Stop stirring! Pour the unburnt part into a clean pot without scraping the bottom.','For burnt toast/baked goods, scrape off black bits with a knife or grater.','A little burnt taste in soup: add a peeled raw potato or a spoon of peanut butter/sugar to mask it.','If it tastes acrid all the way through, it’s usually best to start over.'], tip:'Use medium heat and a heavy pot; stir sauces from the bottom.'},
+      {t:'Too spicy', k:['spicy','hot','pepper','chili','burning'], fix:['Add dairy: sour cream, yogurt, milk, cheese, or coconut milk.','Add sweetness (sugar, honey) or acid (lime) to balance.','Bulk it up with more unseasoned ingredients.','Serve with rice, bread, or a cool side.'], tip:'Add chili gradually — heat builds as food sits.'},
+      {t:'Bland / no flavor', k:['bland','flavor','tasteless','boring'], fix:['Add salt a pinch at a time — it’s usually the missing piece.','Brighten with lemon juice or vinegar.','Add umami: soy sauce, parmesan, tomato paste, or Worcestershire.','Finish with fresh herbs, garlic, or a drizzle of good oil.'], tip:'Taste and season at every stage.'},
+      {t:'Too sweet', k:['sweet','sugar'], fix:['Add acid: lemon, lime, or vinegar.','Add a pinch of salt.','Add something bitter or savory: coffee, cocoa, or soy sauce.','Dilute with more of the unsweetened base.'], tip:''},
+      {t:'Too sour / acidic', k:['sour','acid','tart','vinegar','lemon'], fix:['Add a little sugar or honey.','Stir in butter, cream, or oil to mellow it.','A tiny pinch of baking soda neutralizes acid in tomato sauces (it will foam).'], tip:''},
+      {t:'Sauce too thin', k:['thin','watery','runny'], fix:['Simmer uncovered to reduce.','Cornstarch slurry: 1 Tbsp cornstarch + 2 Tbsp cold water, stir in and simmer 1 minute.','Stir in grated cheese, a little flour-butter paste, or mashed beans/potato.'], tip:''},
+      {t:'Sauce too thick', k:['thick','gloopy','paste'], fix:['Whisk in warm stock, water, milk, or pasta water a splash at a time.'], tip:'Save a cup of pasta water before draining.'},
+      {t:'Sauce split / curdled', k:['split','curdl','separat','grainy','broke'], fix:['Take it off the heat right away.','Whisk in an ice cube or a spoon of cold cream.','For butter or mayo sauces: whisk a fresh egg yolk or spoon of water in a new bowl, then slowly whisk the broken sauce into it.','Blend it with an immersion blender.'], tip:'Add dairy on low heat and don’t let it boil.'},
+      {t:'Meat is dry / tough', k:['dry','tough','chewy','overcook'], fix:['Slice thin across the grain.','Simmer in broth or sauce for a few minutes.','Shred it for tacos, fried rice, soup, or sandwiches with sauce.'], tip:'Use a thermometer and rest meat 5–10 minutes before cutting.'},
+      {t:'Chicken may be undercooked', k:['undercook','raw','pink','chicken'], warn:'Food safety: chicken must reach 165°F (74°C) in the thickest part.', fix:['Put it back in the pan or oven. Covering it helps it cook evenly.','Cut thick pieces in half or butterfly them.','Use a meat thermometer — color alone is not reliable.','Wash cutting boards and hands that touched the raw chicken.'], tip:''},
+      {t:'Pasta overcooked / mushy', k:['pasta','mushy','soggy','noodle'], fix:['Drain it, rinse briefly with cold water, then sauté in a hot pan with oil to firm it up.','Turn it into baked pasta or pasta frittata.'], tip:'Start tasting 2 minutes before the box time.'},
+      {t:'Rice is mushy or burnt', k:['rice','sticky','gummy','crunchy'], fix:['Mushy: spread on a tray to steam dry, or make fried rice tomorrow.','Crunchy/undercooked: add 2–3 Tbsp water, cover, and cook on low 5–10 minutes.','Burnt bottom: scoop the good rice out without scraping; set a slice of bread on top for 5 minutes to absorb smoky smell.'], tip:''},
+      {t:'Too greasy', k:['greasy','oily','fat'], fix:['Skim fat off the top with a spoon or paper towel.','Drop in ice cubes — fat clings to them; remove quickly.','Chill it; fat hardens on top and lifts off.'], tip:''},
+      {t:'Baked goods flat / didn’t rise', k:['flat','rise','dense','cake','bread','cookie'], fix:['Check that baking powder/soda or yeast isn’t expired.','Turn a flat cake into trifle, cake pops, or crumble topping.','Dense bread makes great toast, croutons, or bread pudding.'], tip:'Measure flour by spooning into the cup and leveling it.'},
+      {t:'Grease fire!', k:['fire','flame'], warn:'Never use water on a grease fire.', fix:['Turn off the heat.','Cover the pan with a metal lid or baking sheet.','Pour on lots of baking soda or salt if the fire is small.','If it spreads, get out and call 911.'], tip:''}
+    ];
+    const esc = t => t.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    function showOops(o){ const a=$('oopsAnswer'); a.classList.add('show');
+      a.innerHTML=`<strong>${o.t}</strong>${o.warn?`<div class="warn" style="margin-top:6px">⚠ ${o.warn}</div>`:''}<ul>${o.fix.map(f=>`<li>${f}</li>`).join('')}</ul>${o.tip?`<p style="color:var(--muted);margin:10px 0 0">Next time: ${o.tip}</p>`:''}`; }
+    $('oopsGrid').innerHTML=OOPS.map((o,i)=>`<button type="button" data-i="${i}">${o.t}</button>`).join('');
+    $('oopsGrid').addEventListener('click',e=>{ const i=e.target.dataset.i; if(i!==undefined) showOops(OOPS[i]); });
+    $('oopsBtn').addEventListener('click',()=>{ $('oopsModal').classList.add('open'); $('oopsText').focus(); });
+    $('oopsClose').addEventListener('click',()=>$('oopsModal').classList.remove('open'));
+    $('oopsModal').addEventListener('click',e=>{ if(e.target.id==='oopsModal') $('oopsModal').classList.remove('open'); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('oopsModal').classList.remove('open'); });
+    async function aiOops(q){ const {provider,key}=aiCfg();
+      const prompt='You are a friendly, practical cooking coach. A home cook says: "'+q+'". Give 3-5 short, concrete ways to fix or rescue it right now, plus one tip to avoid it next time. Mention food safety if relevant. Plain text, each fix on its own line starting with "- ", then a line starting with "Next time:".';
+      if (provider==='openai'){ const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model:'gpt-4o-mini',messages:[{role:'user',content:prompt}]})}); const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||r.status); return j.choices[0].message.content; }
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})}); const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||r.status); return j.candidates[0].content.parts.map(p=>p.text).join(''); }
+    function localMatch(q){ q=q.toLowerCase(); let best=null,score=0; OOPS.forEach(o=>{ const s=o.k.filter(k=>q.includes(k)).length; if(s>score){score=s;best=o;} }); return best; }
+    $('oopsForm').addEventListener('submit',async e=>{ e.preventDefault(); const q=$('oopsText').value.trim(); if(!q) return; const a=$('oopsAnswer');
+      if (aiCfg().key) { a.classList.add('show'); a.textContent='Thinking…';
+        try { const t=await aiOops(q); const lines=t.split('\n').map(l=>l.trim()).filter(Boolean);
+          const fixes=lines.filter(l=>/^[-*•]/.test(l)).map(l=>l.replace(/^[-*•]\s*/,'').replace(/\*\*/g,'')); const nt=lines.find(l=>/^next time/i.test(l.replace(/\*/g,'')));
+          a.innerHTML=`<strong>Here’s how to fix it</strong><ul>${(fixes.length?fixes:lines).map(l=>`<li>${esc(l)}</li>`).join('')}</ul>${nt?`<p style="color:var(--muted);margin:10px 0 0">${esc(nt.replace(/\*/g,''))}</p>`:''}`; return;
+        } catch(err){ /* fall through to built-in tips */ } }
+      const m=localMatch(q); if(m) showOops(m); else { a.classList.add('show'); a.innerHTML='I don’t have a tip for that yet. Try one of the buttons above'+(aiCfg().key?'.':', or add an AI key (Scan → ⚙ AI) for help with any problem.'); } });
   </script>
 </body>
 </html>
